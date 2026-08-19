@@ -11,6 +11,7 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [checkEmail, setCheckEmail] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -62,11 +63,20 @@ export default function Signup() {
           />
         </Field>
         <Field label="Password">
-          <input
-            type="password" required value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="input" placeholder="At least 6 characters"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'} required value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="input pr-16" placeholder="At least 6 characters"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(s => !s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-mono text-slate hover:text-ink px-2 py-1"
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </Field>
         {error && <p className="text-vital text-sm">{error}</p>}
         <button type="submit" disabled={submitting} className="btn-primary w-full">
