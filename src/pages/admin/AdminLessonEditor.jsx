@@ -122,14 +122,14 @@ export default function AdminLessonEditor() {
         ref={previewFileInputRef}
         type="file"
         accept="image/*"
-        style={{ display: 'none' }}
+        style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
         onChange={e => handleFileChosen(e, previewQuillRef)}
       />
       <input
         ref={contentFileInputRef}
         type="file"
         accept="image/*"
-        style={{ display: 'none' }}
+        style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
         onChange={e => handleFileChosen(e, contentQuillRef)}
       />
 
@@ -205,4 +205,4 @@ function Field({ label, children }) {
       {children}
     </label>
   )
-    }
+          }
