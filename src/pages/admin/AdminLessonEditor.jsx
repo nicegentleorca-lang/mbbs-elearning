@@ -139,16 +139,15 @@ export default function AdminLessonEditor() {
           modules={previewModules}
         />
       </div>
+      
+      <p className="text-sm text-slate mb-1 mt-2">Add image to preview:</p>
       <div className="mb-1">
-        <label className="btn-secondary inline-block cursor-pointer text-sm">
-          Add image to preview
-          <input
-            type="file"
-            accept="image/*"
-            className="block w-full mt-2"
-            onChange={e => handlePlainFileUpload(e, previewQuillRef, setPreviewImageStatus)}
-          />
-        </label>
+        <input
+          type="file"
+          accept="image/*"
+          className="block w-full border border-paperDim p-2 rounded"
+          onChange={e => handlePlainFileUpload(e, previewQuillRef, setPreviewImageStatus)}
+        />
       </div>
       <p className="text-xs font-mono text-slate mb-4">{previewImageStatus}</p>
 
@@ -162,16 +161,15 @@ export default function AdminLessonEditor() {
           modules={modules}
         />
       </div>
+      
+      <p className="text-sm text-slate mb-1 mt-2">Add image to full notes:</p>
       <div className="mb-1">
-        <label className="btn-secondary inline-block cursor-pointer text-sm">
-          Add image to full notes
-          <input
-            type="file"
-            accept="image/*"
-            className="block w-full mt-2"
-            onChange={e => handlePlainFileUpload(e, contentQuillRef, setContentImageStatus)}
-          />
-        </label>
+        <input
+          type="file"
+          accept="image/*"
+          className="block w-full border border-paperDim p-2 rounded"
+          onChange={e => handlePlainFileUpload(e, contentQuillRef, setContentImageStatus)}
+        />
       </div>
       <p className="text-xs font-mono text-slate mb-4">{contentImageStatus}</p>
 
@@ -205,4 +203,5 @@ function Field({ label, children }) {
       {children}
     </label>
   )
-      }
+    }
+          
