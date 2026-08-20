@@ -11,6 +11,9 @@ export default function AdminLessonEditor() {
   const contentQuillRef = useRef(null)
   const lessonSlugRef = useRef('untitled')
 
+  const previewFileInputRef = useRef(null)
+  const contentFileInputRef = useRef(null)
+
   const [subjects, setSubjects] = useState([])
   const [topics, setTopics] = useState([])
   const [subjectId, setSubjectId] = useState('')
@@ -44,36 +47,23 @@ export default function AdminLessonEditor() {
     lessonSlugRef.current = lessonSlug
   }, [lessonSlug])
 
-  function makeImageHandler(quillRef) {
-    return function imageHandler() {
-      const input = document.createElement('input')
-      input.setAttribute('type', 'file')
-      input.setAttribute('accept', 'image/*')
-      input.style.position = 'fixed'
-      input.style.top = '-1000px'
-      document.body.appendChild(input)
+  async function handleFileChosen(e, quillRef) {
+    const file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
 
-      input.onchange = async () => {
-        const file = input.files[0]
-        document.body.removeChild(input)
-        if (!file) return
-
-        setUploadingImage(true)
-        setError('')
-        try {
-          const url = await uploadLessonImage(file, lessonSlugRef.current)
-          const editor = quillRef.current.getEditor()
-          const range = editor.getSelection(true) || { index: editor.getLength() }
-          editor.insertEmbed(range.index, 'image', url)
-          editor.setSelection(range.index + 1)
-        } catch (err) {
-          setError(`Image upload failed: ${err.message}`)
-        } finally {
-          setUploadingImage(false)
-        }
-      }
-
-      input.click()
+    setUploadingImage(true)
+    setError('')
+    try {
+      const url = await uploadLessonImage(file, lessonSlugRef.current)
+      const editor = quillRef.current.getEditor()
+      const range = editor.getSelection(true) || { index: editor.getLength() }
+      editor.insertEmbed(range.index, 'image', url)
+      editor.setSelection(range.index + 1)
+    } catch (err) {
+      setError(`Image upload failed: ${err.message}`)
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -86,14 +76,18 @@ export default function AdminLessonEditor() {
         ['image'],
         ['clean']
       ],
-      handlers: { image: makeImageHandler(contentQuillRef) }
+      handlers: {
+        image: () => contentFileInputRef.current?.click()
+      }
     }
   }), [])
 
   const previewModules = useMemo(() => ({
     toolbar: {
       container: [['bold', 'italic'], ['image'], ['clean']],
-      handlers: { image: makeImageHandler(previewQuillRef) }
+      handlers: {
+        image: () => previewFileInputRef.current?.click()
+      }
     }
   }), [])
 
@@ -123,6 +117,21 @@ export default function AdminLessonEditor() {
     <div className="max-w-2xl">
       <span className="specimen-label mb-3 block w-fit">Admin · New lesson</span>
       <h1 className="font-display text-2xl font-semibold mb-6">Write a lesson</h1>
+
+      <input
+        ref={previewFileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={e => handleFileChosen(e, previewQuillRef)}
+      />
+      <input
+        ref={contentFileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={e => handleFileChosen(e, contentQuillRef)}
+      />
 
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
         <Field label="Subject">
@@ -196,4 +205,4 @@ function Field({ label, children }) {
       {children}
     </label>
   )
-        }
+    }
