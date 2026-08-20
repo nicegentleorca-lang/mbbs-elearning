@@ -7,7 +7,8 @@ import { slugify } from '../../lib/slugify'
 
 export default function AdminLessonEditor() {
   const navigate = useNavigate()
-  const quillRef = useRef(null)
+  const previewQuillRef = useRef(null)
+  const contentQuillRef = useRef(null)
   const lessonSlugRef = useRef('untitled')
 
   const [subjects, setSubjects] = useState([])
@@ -18,6 +19,7 @@ export default function AdminLessonEditor() {
   const [previewHtml, setPreviewHtml] = useState('')
   const [contentHtml, setContentHtml] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [error, setError] = useState('')
   const [savedMessage, setSavedMessage] = useState('')
 
@@ -38,15 +40,43 @@ export default function AdminLessonEditor() {
 
   const lessonSlug = useMemo(() => slugify(title || 'untitled'), [title])
 
-  // Keep a ref in sync so the image handler always reads the *current*
-  // slug without forcing the Quill toolbar (and editor) to rebuild.
   useEffect(() => {
     lessonSlugRef.current = lessonSlug
   }, [lessonSlug])
 
-  // Built ONCE. Rebuilding this object on every keystroke was destroying
-  // and recreating the Quill editor each time, which is why the "Full
-  // notes" box was disappearing.
+  function makeImageHandler(quillRef) {
+    return function imageHandler() {
+      const input = document.createElement('input')
+      input.setAttribute('type', 'file')
+      input.setAttribute('accept', 'image/*')
+      input.style.position = 'fixed'
+      input.style.top = '-1000px'
+      document.body.appendChild(input)
+
+      input.onchange = async () => {
+        const file = input.files[0]
+        document.body.removeChild(input)
+        if (!file) return
+
+        setUploadingImage(true)
+        setError('')
+        try {
+          const url = await uploadLessonImage(file, lessonSlugRef.current)
+          const editor = quillRef.current.getEditor()
+          const range = editor.getSelection(true) || { index: editor.getLength() }
+          editor.insertEmbed(range.index, 'image', url)
+          editor.setSelection(range.index + 1)
+        } catch (err) {
+          setError(`Image upload failed: ${err.message}`)
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+
+      input.click()
+    }
+  }
+
   const modules = useMemo(() => ({
     toolbar: {
       container: [
@@ -56,32 +86,15 @@ export default function AdminLessonEditor() {
         ['image'],
         ['clean']
       ],
-      handlers: {
-        image: function imageHandler() {
-          const input = document.createElement('input')
-          input.setAttribute('type', 'file')
-          input.setAttribute('accept', 'image/*')
-          input.click()
-          input.onchange = async () => {
-            const file = input.files[0]
-            if (!file) return
-            try {
-              const url = await uploadLessonImage(file, lessonSlugRef.current)
-              const editor = quillRef.current.getEditor()
-              const range = editor.getSelection(true)
-              editor.insertEmbed(range.index, 'image', url)
-              editor.setSelection(range.index + 1)
-            } catch (err) {
-              setError(`Image upload failed: ${err.message}`)
-            }
-          }
-        }
-      }
+      handlers: { image: makeImageHandler(contentQuillRef) }
     }
   }), [])
 
   const previewModules = useMemo(() => ({
-    toolbar: [['bold', 'italic'], ['image'], ['clean']]
+    toolbar: {
+      container: [['bold', 'italic'], ['image'], ['clean']],
+      handlers: { image: makeImageHandler(previewQuillRef) }
+    }
   }), [])
 
   async function handleSave(status) {
@@ -131,6 +144,7 @@ export default function AdminLessonEditor() {
       <p className="text-sm text-slate mb-1">Free preview (shown to everyone — keep this to one paragraph or image)</p>
       <div className="bg-white border border-paperDim rounded-card mb-4">
         <ReactQuill
+          ref={previewQuillRef}
           theme="snow"
           value={previewHtml}
           onChange={setPreviewHtml}
@@ -141,7 +155,7 @@ export default function AdminLessonEditor() {
       <p className="text-sm text-slate mb-1">Full notes (paywalled until the subject is purchased)</p>
       <div className="bg-white border border-paperDim rounded-card mb-4">
         <ReactQuill
-          ref={quillRef}
+          ref={contentQuillRef}
           theme="snow"
           value={contentHtml}
           onChange={setContentHtml}
@@ -149,20 +163,23 @@ export default function AdminLessonEditor() {
         />
       </div>
 
+      {uploadingImage && (
+        <p className="text-venous text-sm mb-3 font-mono">Uploading image… please wait</p>
+      )}
       {error && <p className="text-vital text-sm mb-3">{error}</p>}
       {savedMessage && <p className="text-venous text-sm mb-3">{savedMessage}</p>}
 
       <div className="flex gap-3">
         <button
           onClick={() => handleSave('draft')}
-          disabled={saving || !title || !topicId}
+          disabled={saving || uploadingImage || !title || !topicId}
           className="btn-secondary"
         >
           Save as draft
         </button>
         <button
           onClick={() => handleSave('published')}
-          disabled={saving || !title || !topicId}
+          disabled={saving || uploadingImage || !title || !topicId}
           className="btn-primary"
         >
           {saving ? 'Publishing…' : 'Publish'}
@@ -179,4 +196,4 @@ function Field({ label, children }) {
       {children}
     </label>
   )
-}
+        }
