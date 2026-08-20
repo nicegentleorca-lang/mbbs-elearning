@@ -144,7 +144,7 @@ export default function AdminLessonEditor() {
       <div className="mb-1">
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg, image/png, image/webp, image/gif"
           className="block w-full border border-paperDim p-2 rounded"
           onChange={e => handlePlainFileUpload(e, previewQuillRef, setPreviewImageStatus)}
         />
@@ -166,7 +166,7 @@ export default function AdminLessonEditor() {
       <div className="mb-1">
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg, image/png, image/webp, image/gif"
           className="block w-full border border-paperDim p-2 rounded"
           onChange={e => handlePlainFileUpload(e, contentQuillRef, setContentImageStatus)}
         />
@@ -204,4 +204,3 @@ function Field({ label, children }) {
     </label>
   )
     }
-          
