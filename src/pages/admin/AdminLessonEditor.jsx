@@ -11,9 +11,6 @@ export default function AdminLessonEditor() {
   const contentQuillRef = useRef(null)
   const lessonSlugRef = useRef('untitled')
 
-  const previewFileInputRef = useRef(null)
-  const contentFileInputRef = useRef(null)
-
   const [subjects, setSubjects] = useState([])
   const [topics, setTopics] = useState([])
   const [subjectId, setSubjectId] = useState('')
@@ -22,9 +19,11 @@ export default function AdminLessonEditor() {
   const [previewHtml, setPreviewHtml] = useState('')
   const [contentHtml, setContentHtml] = useState('')
   const [saving, setSaving] = useState(false)
-  const [uploadingImage, setUploadingImage] = useState(false)
   const [error, setError] = useState('')
   const [savedMessage, setSavedMessage] = useState('')
+
+  const [previewImageStatus, setPreviewImageStatus] = useState('No file chosen yet.')
+  const [contentImageStatus, setContentImageStatus] = useState('No file chosen yet.')
 
   useEffect(() => {
     getSubjects().then(subs => {
@@ -47,23 +46,27 @@ export default function AdminLessonEditor() {
     lessonSlugRef.current = lessonSlug
   }, [lessonSlug])
 
-  async function handleFileChosen(e, quillRef) {
+  async function handlePlainFileUpload(e, quillRef, setStatus) {
     const file = e.target.files[0]
-    e.target.value = ''
-    if (!file) return
+    if (!file) {
+      setStatus('No file was received from the picker. Try again.')
+      return
+    }
 
-    setUploadingImage(true)
+    setStatus(`File detected: ${file.name} (${Math.round(file.size / 1024)} KB). Uploading…`)
     setError('')
     try {
       const url = await uploadLessonImage(file, lessonSlugRef.current)
+      setStatus(`Uploaded successfully. Inserting into the lesson…`)
       const editor = quillRef.current.getEditor()
       const range = editor.getSelection(true) || { index: editor.getLength() }
       editor.insertEmbed(range.index, 'image', url)
       editor.setSelection(range.index + 1)
+      setStatus(`Done — image inserted.`)
     } catch (err) {
-      setError(`Image upload failed: ${err.message}`)
+      setStatus(`Upload failed: ${err.message}`)
     } finally {
-      setUploadingImage(false)
+      e.target.value = ''
     }
   }
 
@@ -73,22 +76,13 @@ export default function AdminLessonEditor() {
         [{ header: [2, 3, false] }],
         ['bold', 'italic', 'underline'],
         [{ list: 'ordered' }, { list: 'bullet' }],
-        ['image'],
         ['clean']
-      ],
-      handlers: {
-        image: () => contentFileInputRef.current?.click()
-      }
+      ]
     }
   }), [])
 
   const previewModules = useMemo(() => ({
-    toolbar: {
-      container: [['bold', 'italic'], ['image'], ['clean']],
-      handlers: {
-        image: () => previewFileInputRef.current?.click()
-      }
-    }
+    toolbar: [['bold', 'italic'], ['clean']]
   }), [])
 
   async function handleSave(status) {
@@ -118,21 +112,6 @@ export default function AdminLessonEditor() {
       <span className="specimen-label mb-3 block w-fit">Admin · New lesson</span>
       <h1 className="font-display text-2xl font-semibold mb-6">Write a lesson</h1>
 
-      <input
-        ref={previewFileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
-        onChange={e => handleFileChosen(e, previewQuillRef)}
-      />
-      <input
-        ref={contentFileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
-        onChange={e => handleFileChosen(e, contentQuillRef)}
-      />
-
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
         <Field label="Subject">
           <select value={subjectId} onChange={e => setSubjectId(e.target.value)} className="input">
@@ -151,7 +130,7 @@ export default function AdminLessonEditor() {
       </Field>
 
       <p className="text-sm text-slate mb-1">Free preview (shown to everyone — keep this to one paragraph or image)</p>
-      <div className="bg-white border border-paperDim rounded-card mb-4">
+      <div className="bg-white border border-paperDim rounded-card mb-1">
         <ReactQuill
           ref={previewQuillRef}
           theme="snow"
@@ -160,9 +139,21 @@ export default function AdminLessonEditor() {
           modules={previewModules}
         />
       </div>
+      <div className="mb-1">
+        <label className="btn-secondary inline-block cursor-pointer text-sm">
+          Add image to preview
+          <input
+            type="file"
+            accept="image/*"
+            className="block w-full mt-2"
+            onChange={e => handlePlainFileUpload(e, previewQuillRef, setPreviewImageStatus)}
+          />
+        </label>
+      </div>
+      <p className="text-xs font-mono text-slate mb-4">{previewImageStatus}</p>
 
       <p className="text-sm text-slate mb-1">Full notes (paywalled until the subject is purchased)</p>
-      <div className="bg-white border border-paperDim rounded-card mb-4">
+      <div className="bg-white border border-paperDim rounded-card mb-1">
         <ReactQuill
           ref={contentQuillRef}
           theme="snow"
@@ -171,24 +162,33 @@ export default function AdminLessonEditor() {
           modules={modules}
         />
       </div>
+      <div className="mb-1">
+        <label className="btn-secondary inline-block cursor-pointer text-sm">
+          Add image to full notes
+          <input
+            type="file"
+            accept="image/*"
+            className="block w-full mt-2"
+            onChange={e => handlePlainFileUpload(e, contentQuillRef, setContentImageStatus)}
+          />
+        </label>
+      </div>
+      <p className="text-xs font-mono text-slate mb-4">{contentImageStatus}</p>
 
-      {uploadingImage && (
-        <p className="text-venous text-sm mb-3 font-mono">Uploading image… please wait</p>
-      )}
       {error && <p className="text-vital text-sm mb-3">{error}</p>}
       {savedMessage && <p className="text-venous text-sm mb-3">{savedMessage}</p>}
 
       <div className="flex gap-3">
         <button
           onClick={() => handleSave('draft')}
-          disabled={saving || uploadingImage || !title || !topicId}
+          disabled={saving || !title || !topicId}
           className="btn-secondary"
         >
           Save as draft
         </button>
         <button
           onClick={() => handleSave('published')}
-          disabled={saving || uploadingImage || !title || !topicId}
+          disabled={saving || !title || !topicId}
           className="btn-primary"
         >
           {saving ? 'Publishing…' : 'Publish'}
@@ -205,4 +205,4 @@ function Field({ label, children }) {
       {children}
     </label>
   )
-          }
+      }
