@@ -106,3 +106,72 @@ export async function uploadLessonImage(file, lessonSlug) {
   const { data } = supabase.storage.from('lesson-images').getPublicUrl(path)
   return data.publicUrl
 }
+// ---- Admin: read single records for editing ----
+
+export async function getSubjectById(id) {
+  const { data, error } = await supabase.from('subjects').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
+export async function getTopicById(id) {
+  const { data, error } = await supabase.from('topics').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
+export async function getLessonById(id) {
+  const { data, error } = await supabase.from('lessons').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
+// Admin view of a topic's lessons — includes drafts, unlike getLessonsByTopic.
+export async function getAllLessonsByTopicAdmin(topicId) {
+  const { data, error } = await supabase
+    .from('lessons')
+    .select('id, topic_id, title, slug, status, sort_order')
+    .eq('topic_id', topicId)
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+// ---- Admin: update ----
+
+export async function updateSubject(id, fields) {
+  const { data, error } = await supabase.from('subjects').update(fields).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateTopic(id, fields) {
+  const { data, error } = await supabase.from('topics').update(fields).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateLesson(id, fields) {
+  const { data, error } = await supabase.from('lessons').update(fields).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+// ---- Admin: delete ----
+// Deleting a subject also deletes its topics and lessons (cascade in the
+// database). Deleting a topic also deletes its lessons.
+
+export async function deleteSubject(id) {
+  const { error } = await supabase.from('subjects').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteTopic(id) {
+  const { error } = await supabase.from('topics').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteLesson(id) {
+  const { error } = await supabase.from('lessons').delete().eq('id', id)
+  if (error) throw error
+    }
