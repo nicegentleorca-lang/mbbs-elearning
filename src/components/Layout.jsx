@@ -18,8 +18,12 @@ export default function Layout({ children }) {
             Preclinical Notes
           </Link>
           <nav className="flex items-center gap-4 text-sm font-sans">
-            <Link to="/" className="text-slate hover:text-ink">Subjects</Link>
-            <Link to="/quizzes" className="text-slate hover:text-ink">Quizzes</Link>
+            {user && (
+              <>
+                <Link to="/" className="text-slate hover:text-ink">Subjects</Link>
+                <Link to="/quizzes" className="text-slate hover:text-ink">Quizzes</Link>
+              </>
+            )}
             {isAdmin && (
               <Link to="/admin" className="text-venous hover:text-venousDark font-medium">Admin</Link>
             )}
