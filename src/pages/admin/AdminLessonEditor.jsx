@@ -8,6 +8,7 @@ import { slugify } from '../../lib/slugify'
 export default function AdminLessonEditor() {
   const navigate = useNavigate()
   const quillRef = useRef(null)
+  const lessonSlugRef = useRef('untitled')
 
   const [subjects, setSubjects] = useState([])
   const [topics, setTopics] = useState([])
@@ -37,26 +38,15 @@ export default function AdminLessonEditor() {
 
   const lessonSlug = useMemo(() => slugify(title || 'untitled'), [title])
 
-  function imageHandler() {
-    const input = document.createElement('input')
-    input.setAttribute('type', 'file')
-    input.setAttribute('accept', 'image/*')
-    input.click()
-    input.onchange = async () => {
-      const file = input.files[0]
-      if (!file) return
-      try {
-        const url = await uploadLessonImage(file, lessonSlug)
-        const editor = quillRef.current.getEditor()
-        const range = editor.getSelection(true)
-        editor.insertEmbed(range.index, 'image', url)
-        editor.setSelection(range.index + 1)
-      } catch (err) {
-        setError(`Image upload failed: ${err.message}`)
-      }
-    }
-  }
+  // Keep a ref in sync so the image handler always reads the *current*
+  // slug without forcing the Quill toolbar (and editor) to rebuild.
+  useEffect(() => {
+    lessonSlugRef.current = lessonSlug
+  }, [lessonSlug])
 
+  // Built ONCE. Rebuilding this object on every keystroke was destroying
+  // and recreating the Quill editor each time, which is why the "Full
+  // notes" box was disappearing.
   const modules = useMemo(() => ({
     toolbar: {
       container: [
@@ -66,9 +56,33 @@ export default function AdminLessonEditor() {
         ['image'],
         ['clean']
       ],
-      handlers: { image: imageHandler }
+      handlers: {
+        image: function imageHandler() {
+          const input = document.createElement('input')
+          input.setAttribute('type', 'file')
+          input.setAttribute('accept', 'image/*')
+          input.click()
+          input.onchange = async () => {
+            const file = input.files[0]
+            if (!file) return
+            try {
+              const url = await uploadLessonImage(file, lessonSlugRef.current)
+              const editor = quillRef.current.getEditor()
+              const range = editor.getSelection(true)
+              editor.insertEmbed(range.index, 'image', url)
+              editor.setSelection(range.index + 1)
+            } catch (err) {
+              setError(`Image upload failed: ${err.message}`)
+            }
+          }
+        }
+      }
     }
-  }), [lessonSlug])
+  }), [])
+
+  const previewModules = useMemo(() => ({
+    toolbar: [['bold', 'italic'], ['image'], ['clean']]
+  }), [])
 
   async function handleSave(status) {
     setSaving(true)
@@ -114,28 +128,26 @@ export default function AdminLessonEditor() {
         <input value={title} onChange={e => setTitle(e.target.value)} className="input mb-4" placeholder="e.g. Brachial Plexus" />
       </Field>
 
-      <Field label="Free preview (shown to everyone — keep this to one paragraph or image)">
-        <div className="bg-white border border-paperDim rounded-card mb-4">
-          <ReactQuill
-            theme="snow"
-            value={previewHtml}
-            onChange={setPreviewHtml}
-            modules={{ toolbar: [['bold', 'italic'], ['image'], ['clean']] }}
-          />
-        </div>
-      </Field>
+      <p className="text-sm text-slate mb-1">Free preview (shown to everyone — keep this to one paragraph or image)</p>
+      <div className="bg-white border border-paperDim rounded-card mb-4">
+        <ReactQuill
+          theme="snow"
+          value={previewHtml}
+          onChange={setPreviewHtml}
+          modules={previewModules}
+        />
+      </div>
 
-      <Field label="Full notes (paywalled until the subject is purchased)">
-        <div className="bg-white border border-paperDim rounded-card mb-4">
-          <ReactQuill
-            ref={quillRef}
-            theme="snow"
-            value={contentHtml}
-            onChange={setContentHtml}
-            modules={modules}
-          />
-        </div>
-      </Field>
+      <p className="text-sm text-slate mb-1">Full notes (paywalled until the subject is purchased)</p>
+      <div className="bg-white border border-paperDim rounded-card mb-4">
+        <ReactQuill
+          ref={quillRef}
+          theme="snow"
+          value={contentHtml}
+          onChange={setContentHtml}
+          modules={modules}
+        />
+      </div>
 
       {error && <p className="text-vital text-sm mb-3">{error}</p>}
       {savedMessage && <p className="text-venous text-sm mb-3">{savedMessage}</p>}
