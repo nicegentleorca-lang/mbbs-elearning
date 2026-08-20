@@ -92,7 +92,7 @@ export async function createTopic(topic) {
 export async function upsertLesson(lesson) {
   const { data, error } = await supabase
     .from('lessons')
-    .upsert(lesson)
+    .upsert(lesson, { onConflict: 'topic_id,slug' })
     .select()
     .single()
   if (error) throw error
