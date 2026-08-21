@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function QuizView() {
@@ -11,6 +11,10 @@ export default function QuizView() {
   const [questions, setQuestions] = useState([])
   const [userAnswers, setUserAnswers] = useState({})
   
+  // Pagination & Navigation Grid State
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [showGrid, setShowGrid] = useState(false)
+
   const [timeLeft, setTimeLeft] = useState(0)
   const [quizStarted, setQuizStarted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -20,6 +24,7 @@ export default function QuizView() {
   const [rankBadge, setRankBadge] = useState({ text: '', desc: '' })
   const [alreadyAttempted, setAlreadyAttempted] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [dailyLimitReached, setDailyLimitReached] = useState(false)
 
   useEffect(() => {
     loadQuizData()
@@ -48,6 +53,7 @@ export default function QuizView() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
 
+      // Fetch Quiz Meta
       const { data: qData, error: qErr } = await supabase
         .from('quizzes')
         .select('*')
@@ -58,6 +64,7 @@ export default function QuizView() {
       setQuiz(qData)
       setTimeLeft(qData.time_limit_minutes * 60)
 
+      // Fetch Questions
       const { data: questData, error: questErr } = await supabase
         .from('questions')
         .select('*')
@@ -68,6 +75,22 @@ export default function QuizView() {
       setQuestions(questData || [])
 
       if (user) {
+        // Daily Cap Check (300 Questions Max / Day)
+        const startOfToday = new Date()
+        startOfToday.setHours(0, 0, 0, 0)
+
+        const { data: todayAttempts } = await supabase
+          .from('quiz_attempts')
+          .select('total_questions')
+          .eq('user_id', user.id)
+          .gte('created_at', startOfToday.toISOString())
+
+        const totalToday = todayAttempts?.reduce((sum, a) => sum + (a.total_questions || 0), 0) || 0
+        if (totalToday >= 300) {
+          setDailyLimitReached(true)
+        }
+
+        // Fetch Existing Attempt
         const { data: attemptData } = await supabase
           .from('quiz_attempts')
           .select('*')
@@ -120,18 +143,19 @@ export default function QuizView() {
       if (currentUser) {
         await supabase
           .from('quiz_attempts')
-          .insert([{
+          .upsert([{
             quiz_id: quizId,
             user_id: currentUser.id,
             score: calculatedScore,
             total_questions: totalQuestions,
             percentage: percentage,
             answers: userAnswers
-          }])
+          }], { onConflict: 'quiz_id,user_id' })
       }
 
       setScore(calculatedScore)
       setSubmitted(true)
+      setShowGrid(false)
       await computeRank(quizId, calculatedScore, totalQuestions)
     } catch (err) {
       alert('Submission failed: ' + err.message)
@@ -140,7 +164,6 @@ export default function QuizView() {
     }
   }
 
-  // Fair ranking algorithm
   async function computeRank(quizId, userScore, totalQuestions) {
     const pct = Math.round((userScore / totalQuestions) * 100)
     
@@ -150,10 +173,10 @@ export default function QuizView() {
       .eq('quiz_id', quizId)
 
     if (!allAttempts || allAttempts.length < 5) {
-      if (pct >= 90) setRankBadge({ text: 'Top 5%', desc: 'Outstanding! Excellent performance.' })
-      else if (pct >= 66) setRankBadge({ text: 'Top 20%', desc: 'Great job! Strong grasp of core concepts.' })
-      else if (pct >= 50) setRankBadge({ text: 'Top 50%', desc: 'Good effort. A quick review will sharpen your knowledge.' })
-      else setRankBadge({ text: 'Needs Work', desc: 'Review the topic materials and try again!' })
+      if (pct >= 90) setRankBadge({ text: 'Top 5%', desc: 'Outstanding performance!' })
+      else if (pct >= 66) setRankBadge({ text: 'Top 20%', desc: 'Great job! Strong mastery.' })
+      else if (pct >= 50) setRankBadge({ text: 'Top 50%', desc: 'Good effort. Review weaker topics.' })
+      else setRankBadge({ text: 'Needs Work', desc: 'Review topic notes and try again!' })
       return
     }
 
@@ -164,7 +187,7 @@ export default function QuizView() {
 
     setRankBadge({
       text: `Top ${topRank}%`,
-      desc: `Scored better than ${percentile}% of medical students on this quiz.`
+      desc: `Scored better than ${percentile}% of students on this quiz.`
     })
   }
 
@@ -180,7 +203,7 @@ export default function QuizView() {
 
     ctx.fillStyle = '#F8FAFC'
     ctx.font = 'bold 28px sans-serif'
-    ctx.fillText('MBBS ACADEMY', 40, 90)
+    ctx.fillText('PRECLINICAL NOTES', 40, 90)
 
     ctx.fillStyle = '#94A3B8'
     ctx.font = '18px sans-serif'
@@ -205,7 +228,7 @@ export default function QuizView() {
 
     ctx.fillStyle = '#64748B'
     ctx.font = '16px monospace'
-    ctx.fillText('mbbs-elearning.app • Master MBBS Concepts', 40, 520)
+    ctx.fillText('preclinicalnotes.app • Active Recall Practice', 40, 520)
 
     canvas.toBlob(blob => {
       if (!blob) return
@@ -231,8 +254,25 @@ export default function QuizView() {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`
   }
 
-  if (loading) return <div className="p-8 text-center font-mono text-slate">Loading quiz...</div>
+  if (loading) return <div className="p-8 text-center font-mono text-slate">Loading practice session...</div>
 
+  // Daily 300 Questions Soft Cap Screen
+  if (dailyLimitReached && !alreadyAttempted && !submitted) {
+    return (
+      <div className="max-w-xl mx-auto p-6 text-center space-y-6">
+        <span className="specimen-label">Daily Goal Reached</span>
+        <h1 className="text-2xl font-display font-bold text-ink">300 Questions Complete!</h1>
+        <p className="text-slate text-sm">
+          You've hit your daily practice ceiling. Take time to digest today's learning and come back tomorrow for fresh sessions.
+        </p>
+        <Link to="/quizzes" className="btn-primary inline-block py-2.5 px-6">
+          Back to Quizzes
+        </Link>
+      </div>
+    )
+  }
+
+  // Quiz Intro Screen
   if (!quizStarted && !submitted) {
     return (
       <div className="max-w-2xl mx-auto p-6 text-center space-y-6">
@@ -250,8 +290,8 @@ export default function QuizView() {
             <p className="text-xl font-bold text-ink">{quiz?.time_limit_minutes} Mins</p>
           </div>
           <div>
-            <p className="text-xs text-slate font-mono uppercase">Attempts</p>
-            <p className="text-xl font-bold text-amber-600">1 Only</p>
+            <p className="text-xs text-slate font-mono uppercase">Mode</p>
+            <p className="text-xl font-bold text-venous">Paginated</p>
           </div>
         </div>
 
@@ -259,19 +299,20 @@ export default function QuizView() {
           onClick={() => setQuizStarted(true)}
           className="w-full py-3 bg-venous text-white rounded-card font-medium hover:bg-venousDark transition shadow-md"
         >
-          Begin Quiz
+          Begin Practice Session
         </button>
       </div>
     )
   }
 
+  // Review Screen (All Questions Displayed for Active Recall Review)
   if (submitted) {
     return (
       <div className="max-w-3xl mx-auto p-4 space-y-6">
         <div className="bg-slate-900 text-white p-6 rounded-card text-center space-y-4 shadow-lg">
           {alreadyAttempted && (
             <span className="bg-amber-500/20 text-amber-300 text-xs font-mono px-3 py-1 rounded-full border border-amber-500/30">
-              Completed Attempt
+              Saved Attempt
             </span>
           )}
           <h1 className="text-2xl font-display font-bold">{quiz?.title} Results</h1>
@@ -306,17 +347,6 @@ export default function QuizView() {
             const hasChosen = userChoice !== undefined
             const isCorrect = userChoice === q.correct_answer
 
-            let statusBadge = null
-            if (hasChosen) {
-              statusBadge = (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                  isCorrect ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
-                }`}>
-                  {isCorrect ? 'Correct' : 'Incorrect'}
-                </span>
-              )
-            }
-
             return (
               <div
                 key={q.id}
@@ -328,7 +358,13 @@ export default function QuizView() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-mono text-xs font-bold text-slate">Question #{idx + 1}</span>
-                  {statusBadge}
+                  {hasChosen && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                      isCorrect ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
+                    }`}>
+                      {isCorrect ? 'Correct' : 'Incorrect'}
+                    </span>
+                  )}
                 </div>
 
                 <p className="font-medium text-ink mb-4 whitespace-pre-line">{q.prompt}</p>
@@ -344,7 +380,7 @@ export default function QuizView() {
 
                     return (
                       <div key={oIdx} className={`p-2.5 rounded text-xs md:text-sm border ${style}`}>
-                        {q.question_type === 'reason_assertion' ? `(${String.fromCharCode(65 + oIdx)}) ${opt}` : opt}
+                        {opt}
                       </div>
                     )
                   })}
@@ -363,57 +399,122 @@ export default function QuizView() {
     )
   }
 
+  // Active Quiz Mode (1 Question at a Time)
+  const currentQ = questions[currentIndex]
+  const answeredCount = Object.keys(userAnswers).length
+
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-6">
-      <div className="sticky top-2 z-10 bg-white/95 backdrop-blur border border-paperDim p-4 rounded-card flex items-center justify-between shadow-sm">
+    <div className="max-w-2xl mx-auto p-4 space-y-6 relative">
+      {/* Top Header Bar */}
+      <div className="bg-white/95 backdrop-blur border border-paperDim p-4 rounded-card flex items-center justify-between shadow-sm">
         <div>
-          <h2 className="font-bold text-ink text-sm md:text-base">{quiz?.title}</h2>
-          <p className="text-xs text-slate">{questions.length} Questions</p>
+          <button
+            onClick={() => setShowGrid(!showGrid)}
+            className="text-xs font-mono font-bold text-venous hover:underline flex items-center gap-1"
+          >
+            📊 Grid ({answeredCount}/{questions.length})
+          </button>
+          <p className="text-xs text-slate font-medium">Question {currentIndex + 1} of {questions.length}</p>
         </div>
-        <div className={`font-mono font-bold text-lg px-3 py-1 rounded ${
+
+        <div className={`font-mono font-bold text-sm px-3 py-1 rounded ${
           timeLeft < 60 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-paper text-ink'
         }`}>
           ⏱ {formatTime(timeLeft)}
         </div>
       </div>
 
-      <div className="space-y-6">
-        {questions.map((q, qIdx) => (
-          <div key={q.id} className="bg-white p-5 border border-paperDim rounded-card space-y-4 shadow-sm">
-            <span className="font-mono text-xs text-slate font-bold">Question #{qIdx + 1}</span>
-            <p className="font-medium text-ink text-sm md:text-base whitespace-pre-line">{q.prompt}</p>
+      {/* Slide-out / Collapsible Navigation Grid */}
+      {showGrid && (
+        <div className="bg-white border border-paperDim p-4 rounded-card space-y-3 shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono font-bold text-slate uppercase">Question Navigator</span>
+            <button onClick={() => setShowGrid(false)} className="text-xs text-slate hover:text-ink">Close ✕</button>
+          </div>
+          <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+            {questions.map((q, idx) => {
+              const isAnswered = userAnswers[q.id] !== undefined
+              const isCurrent = idx === currentIndex
 
-            <div className="space-y-2">
-              {q.options.map((opt, oIdx) => {
-                const isSelected = userAnswers[q.id] === opt
+              let btnStyle = "bg-paper text-slate border-paperDim"
+              if (isAnswered) btnStyle = "bg-venous/20 text-venous border-venous/40 font-bold"
+              if (isCurrent) btnStyle += " ring-2 ring-venous border-venous"
+
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => {
+                    setCurrentIndex(idx)
+                    setShowGrid(false)
+                  }}
+                  className={`p-2 rounded text-xs font-mono border transition ${btnStyle}`}
+                >
+                  {idx + 1}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Single Question Display Card */}
+      {currentQ && (
+        <div className="bg-white p-6 border border-paperDim rounded-card space-y-5 shadow-sm min-h-[300px] flex flex-col justify-between">
+          <div className="space-y-4">
+            <span className="font-mono text-xs text-slate font-bold">Item #{currentIndex + 1}</span>
+            <p className="font-medium text-ink text-base md:text-lg whitespace-pre-line">{currentQ.prompt}</p>
+
+            <div className="space-y-2.5">
+              {currentQ.options.map((opt, oIdx) => {
+                const isSelected = userAnswers[currentQ.id] === opt
                 return (
                   <button
                     key={oIdx}
                     type="button"
-                    onClick={() => handleSelectAnswer(q.id, opt)}
-                    className={`w-full text-left p-3 rounded-card text-xs md:text-sm border transition ${
+                    onClick={() => handleSelectAnswer(currentQ.id, opt)}
+                    className={`w-full text-left p-3.5 rounded-card text-xs md:text-sm border transition ${
                       isSelected
-                        ? 'border-venous bg-venous/10 font-medium text-ink'
+                        ? 'border-venous bg-venous/10 font-semibold text-ink shadow-sm'
                         : 'border-paperDim hover:bg-paper text-ink'
                     }`}
                   >
-                    {q.question_type === 'reason_assertion' ? `(${String.fromCharCode(65 + oIdx)}) ${opt}` : opt}
+                    {opt}
                   </button>
                 )
               })}
             </div>
           </div>
-        ))}
-      </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="w-full py-3 bg-venous text-white rounded-card font-bold hover:bg-venousDark transition disabled:opacity-50"
-      >
-        {submitting ? 'Submitting Answers...' : 'Submit Quiz'}
-      </button>
+          {/* Bottom Pagination Controls */}
+          <div className="flex items-center justify-between pt-4 border-t border-paperDim mt-6">
+            <button
+              onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+              disabled={currentIndex === 0}
+              className="px-4 py-2 text-xs font-mono font-bold bg-paper text-slate rounded border border-paperDim hover:bg-paperDim disabled:opacity-30 transition"
+            >
+              ← Previous
+            </button>
+
+            {currentIndex < questions.length - 1 ? (
+              <button
+                onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                className="px-5 py-2 text-xs font-mono font-bold bg-venous text-white rounded hover:bg-venousDark transition shadow-sm"
+              >
+                Next →
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="px-5 py-2 text-xs font-mono font-bold bg-emerald-600 text-white rounded hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Finish & Submit'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
-                             }
-              
+                 }
+            
