@@ -10,7 +10,6 @@ export default function AdminLessonEditor() {
 
   const [subjects, setSubjects] = useState([])
   const [topics, setTopics] = useState([])
-  const [selectedSubject, setSelectedSubject] = useState('')
   const [selectedTopic, setSelectedTopic] = useState('')
   
   const [title, setTitle] = useState('')
@@ -29,16 +28,16 @@ export default function AdminLessonEditor() {
   async function fetchInitialData() {
     setLoading(true)
     
-    // 1. Fetch all subjects & topics
+    // Fetch subjects and topics using your exact column 'sort_order'
     const [{ data: subData }, { data: topData }] = await Promise.all([
       supabase.from('subjects').select('*').order('name'),
-      supabase.from('topics').select('*').order('title')
+      supabase.from('topics').select('*').order('sort_order', { ascending: true })
     ])
 
     setSubjects(subData || [])
     setTopics(topData || [])
 
-    // 2. Fetch lesson details if editing
+    // Fetch existing lesson data
     if (id) {
       const { data: lesson } = await supabase
         .from('lessons')
@@ -50,29 +49,10 @@ export default function AdminLessonEditor() {
         setTitle(lesson.title || '')
         setPreviewContent(lesson.preview_content || '')
         setFullContent(lesson.content || '')
-        
-        const topicIdStr = String(lesson.topic_id || '')
-        setSelectedTopic(topicIdStr)
-
-        // Find parent subject directly from topics array
-        const parentTopic = (topData || []).find(t => String(t.id) === topicIdStr)
-        if (parentTopic) {
-          setSelectedSubject(String(parentTopic.subject_id))
-        }
+        setSelectedTopic(String(lesson.topic_id || ''))
       }
     }
     setLoading(false)
-  }
-
-  // Robust string-based filtering for dropdown compatibility
-  const filteredTopics = topics.filter(
-    t => String(t.subject_id) === String(selectedSubject)
-  )
-
-  function handleSubjectChange(e) {
-    const subId = e.target.value
-    setSelectedSubject(subId)
-    setSelectedTopic('')
   }
 
   async function handleImageUpload(e, setContent) {
@@ -135,42 +115,48 @@ export default function AdminLessonEditor() {
 
   if (loading) return <div className="p-6 text-center text-slate font-mono">Loading editor...</div>
 
+  const unassignedTopics = topics.filter(
+    t => !subjects.some(s => String(s.id) === String(t.subject_id))
+  )
+
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
       <h1 className="text-2xl font-display font-bold text-ink">
         {id ? 'Edit Lesson' : 'Create Lesson'}
       </h1>
 
-      {/* Subject Dropdown */}
-      <div>
-        <label className="block text-sm font-medium text-slate mb-1">Subject</label>
-        <select
-          value={selectedSubject}
-          onChange={handleSubjectChange}
-          required
-          className="w-full p-2 border border-paperDim rounded bg-paper text-ink"
-        >
-          <option value="">-- Select Subject --</option>
-          {subjects.map(s => (
-            <option key={s.id} value={String(s.id)}>{s.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Topic Dropdown */}
+      {/* Unified Grouped Dropdown */}
       <div>
         <label className="block text-sm font-medium text-slate mb-1">Topic</label>
         <select
           value={selectedTopic}
           onChange={e => setSelectedTopic(e.target.value)}
           required
-          disabled={!selectedSubject}
-          className="w-full p-2 border border-paperDim rounded bg-paper text-ink disabled:opacity-50"
+          className="w-full p-2 border border-paperDim rounded bg-paper text-ink"
         >
           <option value="">-- Select Topic --</option>
-          {filteredTopics.map(t => (
-            <option key={t.id} value={String(t.id)}>{t.title}</option>
-          ))}
+          {subjects.map(s => {
+            const subjectTopics = topics.filter(t => String(t.subject_id) === String(s.id))
+            if (subjectTopics.length === 0) return null
+            return (
+              <optgroup key={s.id} label={s.name}>
+                {subjectTopics.map(t => (
+                  <option key={t.id} value={String(t.id)}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+            )
+          })}
+          {unassignedTopics.length > 0 && (
+            <optgroup label="Other Topics">
+              {unassignedTopics.map(t => (
+                <option key={t.id} value={String(t.id)}>
+                  {t.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
       </div>
 
@@ -239,5 +225,5 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-  }
-        
+}
+  
