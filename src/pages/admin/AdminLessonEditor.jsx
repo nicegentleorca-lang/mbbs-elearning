@@ -59,25 +59,41 @@ export default function AdminLessonEditor() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Show visual status feedback on the upload button
+    const buttonEl = e.target.previousElementSibling
+    const originalText = buttonEl ? buttonEl.innerText : ''
+    if (buttonEl) buttonEl.innerText = 'Uploading...'
+
     try {
       const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `lessons/${fileName}`
 
+      // Upload to Supabase Storage bucket 'lesson-images'
       const { error: uploadError } = await supabase.storage
         .from('lesson-images')
-        .upload(filePath, file)
+        .upload(filePath, file, { cacheControl: '3600', upsert: false })
 
       if (uploadError) throw uploadError
 
+      // Fetch public URL
       const { data } = supabase.storage
         .from('lesson-images')
         .getPublicUrl(filePath)
 
+      if (!data?.publicUrl) throw new Error('Could not generate public URL')
+
       const imageUrl = data.publicUrl
-      setContent(prev => prev + `<p><img src="${imageUrl}" alt="Uploaded image" /></p>`)
+      
+      // Append the image HTML to the active editor's state
+      setContent(prev => `${prev || ''}<p><img src="${imageUrl}" alt="Uploaded image" /></p>`)
+      alert('Image uploaded and embedded successfully!')
     } catch (err) {
       alert('Failed to upload image: ' + err.message)
+    } finally {
+      // Reset input value so selecting the same file again triggers onChange
+      e.target.value = ''
+      if (buttonEl) buttonEl.innerText = originalText
     }
   }
 
@@ -227,4 +243,5 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-                                                                      }
+    }
+        
