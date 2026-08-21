@@ -18,8 +18,13 @@ export default function AdminLessonEditor() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  // File input refs
   const previewFileInputRef = useRef(null)
   const fullFileInputRef = useRef(null)
+
+  // Quill Editor refs (used for cursor position insertion)
+  const previewQuillRef = useRef(null)
+  const fullQuillRef = useRef(null)
 
   useEffect(() => {
     fetchInitialData()
@@ -37,7 +42,7 @@ export default function AdminLessonEditor() {
     setSubjects(subData || [])
     setTopics(topData || [])
 
-    // Fetch existing lesson data with exact column names (preview_html, content_html)
+    // Fetch existing lesson data
     if (id) {
       const { data: lesson } = await supabase
         .from('lessons')
@@ -55,11 +60,10 @@ export default function AdminLessonEditor() {
     setLoading(false)
   }
 
-  async function handleImageUpload(e, setContent) {
+  async function handleImageUpload(e, quillRef) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Show visual status feedback on the upload button
     const buttonEl = e.target.previousElementSibling
     const originalText = buttonEl ? buttonEl.innerText : ''
     if (buttonEl) buttonEl.innerText = 'Uploading...'
@@ -69,14 +73,13 @@ export default function AdminLessonEditor() {
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `lessons/${fileName}`
 
-      // Upload to Supabase Storage bucket 'lesson-images'
+      // Upload image to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('lesson-images')
         .upload(filePath, file, { cacheControl: '3600', upsert: false })
 
       if (uploadError) throw uploadError
 
-      // Fetch public URL
       const { data } = supabase.storage
         .from('lesson-images')
         .getPublicUrl(filePath)
@@ -84,14 +87,18 @@ export default function AdminLessonEditor() {
       if (!data?.publicUrl) throw new Error('Could not generate public URL')
 
       const imageUrl = data.publicUrl
-      
-      // Append the image HTML to the active editor's state
-      setContent(prev => `${prev || ''}<p><img src="${imageUrl}" alt="Uploaded image" /></p>`)
-      alert('Image uploaded and embedded successfully!')
+
+      // Get Quill Instance & insert at active cursor position
+      const quill = quillRef.current?.getEditor()
+      if (quill) {
+        const range = quill.getSelection(true)
+        const index = range ? range.index : quill.getLength()
+        quill.insertEmbed(index, 'image', imageUrl)
+        quill.setSelection(index + 1)
+      }
     } catch (err) {
       alert('Failed to upload image: ' + err.message)
     } finally {
-      // Reset input value so selecting the same file again triggers onChange
       e.target.value = ''
       if (buttonEl) buttonEl.innerText = originalText
     }
@@ -106,7 +113,6 @@ export default function AdminLessonEditor() {
 
     setSaving(true)
     
-    // Payload matching exact Supabase column names
     const payload = {
       title,
       topic_id: selectedTopic,
@@ -204,12 +210,17 @@ export default function AdminLessonEditor() {
           <input
             type="file"
             ref={previewFileInputRef}
-            onChange={e => handleImageUpload(e, setPreviewContent)}
+            onChange={e => handleImageUpload(e, previewQuillRef)}
             accept="image/*"
             className="hidden"
           />
         </div>
-        <ReactQuill theme="snow" value={previewContent} onChange={setPreviewContent} />
+        <ReactQuill 
+          ref={previewQuillRef} 
+          theme="snow" 
+          value={previewContent} 
+          onChange={setPreviewContent} 
+        />
       </div>
 
       {/* Full Notes Content */}
@@ -226,12 +237,17 @@ export default function AdminLessonEditor() {
           <input
             type="file"
             ref={fullFileInputRef}
-            onChange={e => handleImageUpload(e, setFullContent)}
+            onChange={e => handleImageUpload(e, fullQuillRef)}
             accept="image/*"
             className="hidden"
           />
         </div>
-        <ReactQuill theme="snow" value={fullContent} onChange={setFullContent} />
+        <ReactQuill 
+          ref={fullQuillRef} 
+          theme="snow" 
+          value={fullContent} 
+          onChange={setFullContent} 
+        />
       </div>
 
       <button
@@ -243,5 +259,4 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-    }
-        
+      }
