@@ -69,14 +69,13 @@ body {
   * { animation: none !important; transition: none !important; }
 }
 
-/* Force all embedded images to default to 70% width */
+/* Original image formatting: natural sizing, max 100% container width */
 .ql-editor img,
 .prose img,
 .lesson-content img {
-  width: 70% !important;
-  max-width: 100% !important;
-  height: auto !important;
-  display: block !important;
-  margin: 1.5rem auto !important;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.5rem auto;
   border-radius: 6px;
 }
