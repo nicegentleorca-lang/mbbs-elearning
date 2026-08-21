@@ -1,6 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
-import { RequireAuth, RequireAdmin } from './components/RouteGuards'
+import { ProtectedRoute, AdminRoute } from './components/RouteGuards'
 
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -9,32 +9,36 @@ import SubjectPage from './pages/SubjectPage'
 import TopicPage from './pages/TopicPage'
 import LessonPage from './pages/LessonPage'
 import UnlockSubject from './pages/UnlockSubject'
-import Quizzes from './pages/Quizzes'
 
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminManage from './pages/admin/AdminManage'
 import AdminSubjectForm from './pages/admin/AdminSubjectForm'
 import AdminTopicForm from './pages/admin/AdminTopicForm'
 import AdminLessonEditor from './pages/admin/AdminLessonEditor'
 
 export default function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
 
-        <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
-        <Route path="/quizzes" element={<RequireAuth><Quizzes /></RequireAuth>} />
-        <Route path="/subjects/:subjectSlug" element={<RequireAuth><SubjectPage /></RequireAuth>} />
-        <Route path="/subjects/:subjectSlug/unlock" element={<RequireAuth><UnlockSubject /></RequireAuth>} />
-        <Route path="/subjects/:subjectSlug/:topicSlug" element={<RequireAuth><TopicPage /></RequireAuth>} />
-        <Route path="/subjects/:subjectSlug/:topicSlug/:lessonSlug" element={<RequireAuth><LessonPage /></RequireAuth>} />
+      <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/subjects/:subjectSlug" element={<SubjectPage />} />
+        <Route path="/subjects/:subjectSlug/unlock" element={<UnlockSubject />} />
+        <Route path="/subjects/:subjectSlug/:topicSlug" element={<TopicPage />} />
+        <Route path="/subjects/:subjectSlug/:topicSlug/:lessonSlug" element={<LessonPage />} />
 
-        <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-        <Route path="/admin/subjects/new" element={<RequireAdmin><AdminSubjectForm /></RequireAdmin>} />
-        <Route path="/admin/topics/new" element={<RequireAdmin><AdminTopicForm /></RequireAdmin>} />
-        <Route path="/admin/lessons/new" element={<RequireAdmin><AdminLessonEditor /></RequireAdmin>} />
-      </Routes>
-    </Layout>
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/manage" element={<AdminRoute><AdminManage /></AdminRoute>} />
+        <Route path="/admin/subjects/new" element={<AdminRoute><AdminSubjectForm /></AdminRoute>} />
+        <Route path="/admin/subjects/:id/edit" element={<AdminRoute><AdminSubjectForm /></AdminRoute>} />
+        <Route path="/admin/topics/new" element={<AdminRoute><AdminTopicForm /></AdminRoute>} />
+        <Route path="/admin/topics/:id/edit" element={<AdminRoute><AdminTopicForm /></AdminRoute>} />
+        <Route path="/admin/lessons/new" element={<AdminRoute><AdminLessonEditor /></AdminRoute>} />
+        <Route path="/admin/lessons/:id/edit" element={<AdminRoute><AdminLessonEditor /></AdminRoute>} />
+      </Route>
+    </Routes>
   )
 }
