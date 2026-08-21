@@ -21,8 +21,8 @@ export default function QuizView() {
   const [submitting, setSubmitting] = useState(false)
 
   const [score, setScore] = useState(0)
+  const [pastAttempt, setPastAttempt] = useState(null)
   const [rankBadge, setRankBadge] = useState({ text: '', desc: '' })
-  const [alreadyAttempted, setAlreadyAttempted] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [dailyLimitReached, setDailyLimitReached] = useState(false)
 
@@ -90,7 +90,7 @@ export default function QuizView() {
           setDailyLimitReached(true)
         }
 
-        // Fetch Existing Attempt
+        // Fetch Previous Attempt (If Any)
         const { data: attemptData } = await supabase
           .from('quiz_attempts')
           .select('*')
@@ -99,12 +99,11 @@ export default function QuizView() {
           .maybeSingle()
 
         if (attemptData) {
-          setAlreadyAttempted(true)
+          setPastAttempt(attemptData)
           setScore(attemptData.score)
           if (attemptData.answers) {
             setUserAnswers(attemptData.answers)
           }
-          setSubmitted(true)
           await computeRank(quizId, attemptData.score, questData.length)
         }
       }
@@ -113,6 +112,14 @@ export default function QuizView() {
     } finally {
       setLoading(false)
     }
+  }
+
+  function handleStartFresh() {
+    setUserAnswers({})
+    setCurrentIndex(0)
+    setTimeLeft((quiz?.time_limit_minutes || 10) * 60)
+    setSubmitted(false)
+    setQuizStarted(true)
   }
 
   function handleSelectAnswer(questionId, option) {
@@ -257,7 +264,7 @@ export default function QuizView() {
   if (loading) return <div className="p-8 text-center font-mono text-slate">Loading practice session...</div>
 
   // Daily 300 Questions Soft Cap Screen
-  if (dailyLimitReached && !alreadyAttempted && !submitted) {
+  if (dailyLimitReached && !quizStarted && !submitted) {
     return (
       <div className="max-w-xl mx-auto p-6 text-center space-y-6">
         <span className="specimen-label">Daily Goal Reached</span>
@@ -272,7 +279,7 @@ export default function QuizView() {
     )
   }
 
-  // Quiz Intro Screen
+  // Quiz Intro Screen (With Retake vs. Review Support)
   if (!quizStarted && !submitted) {
     return (
       <div className="max-w-2xl mx-auto p-6 text-center space-y-6">
@@ -295,12 +302,34 @@ export default function QuizView() {
           </div>
         </div>
 
-        <button
-          onClick={() => setQuizStarted(true)}
-          className="w-full py-3 bg-venous text-white rounded-card font-medium hover:bg-venousDark transition shadow-md"
-        >
-          Begin Practice Session
-        </button>
+        {pastAttempt ? (
+          <div className="space-y-4 bg-emerald-50/60 p-4 rounded-card border border-emerald-200">
+            <p className="text-xs font-mono text-emerald-800 font-bold uppercase">
+              Previous Attempt: {pastAttempt.score} / {questions.length} ({pastAttempt.percentage}%)
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleStartFresh}
+                className="py-2.5 px-6 bg-venous text-white rounded-card font-medium hover:bg-venousDark transition shadow-sm text-sm"
+              >
+                🔄 Retake Quiz
+              </button>
+              <button
+                onClick={() => setSubmitted(true)}
+                className="py-2.5 px-6 bg-white border border-paperDim text-ink rounded-card font-medium hover:bg-paper transition shadow-sm text-sm"
+              >
+                📖 Review Answers
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={handleStartFresh}
+            className="w-full py-3 bg-venous text-white rounded-card font-medium hover:bg-venousDark transition shadow-md"
+          >
+            Begin Practice Session
+          </button>
+        )}
       </div>
     )
   }
@@ -310,11 +339,15 @@ export default function QuizView() {
     return (
       <div className="max-w-3xl mx-auto p-4 space-y-6">
         <div className="bg-slate-900 text-white p-6 rounded-card text-center space-y-4 shadow-lg">
-          {alreadyAttempted && (
-            <span className="bg-amber-500/20 text-amber-300 text-xs font-mono px-3 py-1 rounded-full border border-amber-500/30">
-              Saved Attempt
-            </span>
-          )}
+          <div className="flex justify-center gap-2">
+            <button
+              onClick={handleStartFresh}
+              className="bg-emerald-500/20 text-emerald-300 text-xs font-mono px-3 py-1 rounded-full border border-emerald-500/30 hover:bg-emerald-500/30 transition"
+            >
+              🔄 Retake This Quiz
+            </button>
+          </div>
+
           <h1 className="text-2xl font-display font-bold">{quiz?.title} Results</h1>
           
           <div className="flex justify-center items-center gap-6 my-4">
@@ -516,5 +549,4 @@ export default function QuizView() {
       )}
     </div>
   )
-                 }
-            
+}
