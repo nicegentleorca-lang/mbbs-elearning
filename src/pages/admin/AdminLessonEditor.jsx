@@ -29,7 +29,7 @@ export default function AdminLessonEditor() {
   async function fetchInitialData() {
     setLoading(true)
     
-    // Fetch all subjects and topics
+    // 1. Fetch all subjects & topics
     const [{ data: subData }, { data: topData }] = await Promise.all([
       supabase.from('subjects').select('*').order('name'),
       supabase.from('topics').select('*').order('title')
@@ -38,29 +38,36 @@ export default function AdminLessonEditor() {
     setSubjects(subData || [])
     setTopics(topData || [])
 
-    // If editing an existing lesson, fetch its details
+    // 2. Fetch lesson details if editing
     if (id) {
-      const { data: lesson, error } = await supabase
+      const { data: lesson } = await supabase
         .from('lessons')
-        .select('*, topics(id, subject_id)')
+        .select('*')
         .eq('id', id)
         .single()
 
-      if (!error && lesson) {
+      if (lesson) {
         setTitle(lesson.title || '')
         setPreviewContent(lesson.preview_content || '')
         setFullContent(lesson.content || '')
-        setSelectedTopic(lesson.topic_id || '')
         
-        if (lesson.topics?.subject_id) {
-          setSelectedSubject(lesson.topics.subject_id)
+        const topicIdStr = String(lesson.topic_id || '')
+        setSelectedTopic(topicIdStr)
+
+        // Find parent subject directly from topics array
+        const parentTopic = (topData || []).find(t => String(t.id) === topicIdStr)
+        if (parentTopic) {
+          setSelectedSubject(String(parentTopic.subject_id))
         }
       }
     }
     setLoading(false)
   }
 
-  const filteredTopics = topics.filter(t => t.subject_id === selectedSubject)
+  // Robust string-based filtering for dropdown compatibility
+  const filteredTopics = topics.filter(
+    t => String(t.subject_id) === String(selectedSubject)
+  )
 
   function handleSubjectChange(e) {
     const subId = e.target.value
@@ -145,7 +152,7 @@ export default function AdminLessonEditor() {
         >
           <option value="">-- Select Subject --</option>
           {subjects.map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+            <option key={s.id} value={String(s.id)}>{s.name}</option>
           ))}
         </select>
       </div>
@@ -162,7 +169,7 @@ export default function AdminLessonEditor() {
         >
           <option value="">-- Select Topic --</option>
           {filteredTopics.map(t => (
-            <option key={t.id} value={t.id}>{t.title}</option>
+            <option key={t.id} value={String(t.id)}>{t.title}</option>
           ))}
         </select>
       </div>
@@ -232,4 +239,5 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-}
+  }
+        
