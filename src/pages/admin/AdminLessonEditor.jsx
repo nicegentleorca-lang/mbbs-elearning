@@ -1,105 +1,102 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
-import { getSubjects, getTopicsBySubject, upsertLesson, uploadLessonImage } from '../../lib/content'
+import {
+  getSubjects, getTopicsBySubject, createLesson,
+  getLessonById, updateLesson, uploadLessonImage
+} from '../../lib/content'
 import { slugify } from '../../lib/slugify'
 
 export default function AdminLessonEditor() {
   const navigate = useNavigate()
-  const previewQuillRef = useRef(null)
-  const contentQuillRef = useRef(null)
-  const lessonSlugRef = useRef('untitled')
+  const { id } = useParams()
+  const isEditing = Boolean(id)
+
+  const [title, setTitle] = useState('')
+  const [subjectId, setSubjectId] = useState('')
+  const [topicId, setTopicId] = useState('')
+  const [previewHtml, setPreviewHtml] = useState('')
+  const [contentHtml, setContentHtml] = useState('')
+  const [status, setStatus] = useState('draft')
 
   const [subjects, setSubjects] = useState([])
   const [topics, setTopics] = useState([])
-  const [subjectId, setSubjectId] = useState('')
-  const [topicId, setTopicId] = useState('')
-  const [title, setTitle] = useState('')
-  const [previewHtml, setPreviewHtml] = useState('')
-  const [contentHtml, setContentHtml] = useState('')
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [error, setError] = useState('')
-  const [savedMessage, setSavedMessage] = useState('')
-
-  const [previewImageStatus, setPreviewImageStatus] = useState('No file chosen yet.')
-  const [contentImageStatus, setContentImageStatus] = useState('No file chosen yet.')
 
   useEffect(() => {
-    getSubjects().then(subs => {
-      setSubjects(subs)
-      if (subs.length > 0) setSubjectId(subs[0].id)
-    }).catch(err => setError(err.message))
-  }, [])
+    async function init() {
+      try {
+        const subs = await getSubjects()
+        setSubjects(subs)
+
+        if (isEditing) {
+          const lesson = await getLessonById(id)
+          setTitle(lesson.title)
+          setPreviewHtml(lesson.preview_html || '')
+          setContentHtml(lesson.content_html || '')
+          setStatus(lesson.status || 'draft')
+          setTopicId(lesson.topic_id)
+        } else if (subs.length > 0) {
+          setSubjectId(subs[0].id)
+        }
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
+  }, [id, isEditing])
 
   useEffect(() => {
     if (!subjectId) return
-    getTopicsBySubject(subjectId).then(tps => {
-      setTopics(tps)
-      setTopicId(tps[0]?.id ?? '')
-    }).catch(err => setError(err.message))
-  }, [subjectId])
+    getTopicsBySubject(subjectId)
+      .then(t => {
+        setTopics(t)
+        if (!isEditing && t.length > 0 && !topicId) setTopicId(t[0].id)
+      })
+      .catch(err => setError(err.message))
+  }, [subjectId, isEditing, topicId])
 
-  const lessonSlug = useMemo(() => slugify(title || 'untitled'), [title])
-
-  useEffect(() => {
-    lessonSlugRef.current = lessonSlug
-  }, [lessonSlug])
-
-  async function handlePlainFileUpload(e, quillRef, setStatus) {
+  async function handleImageUpload(e) {
     const file = e.target.files[0]
-    if (!file) {
-      setStatus('No file was received from the picker. Try again.')
-      return
-    }
-
-    setStatus(`File detected: ${file.name} (${Math.round(file.size / 1024)} KB). Uploading…`)
-    setError('')
+    if (!file) return
+    setUploadingImage(true)
     try {
-      const url = await uploadLessonImage(file, lessonSlugRef.current)
-      setStatus(`Uploaded successfully. Inserting into the lesson…`)
-      const editor = quillRef.current.getEditor()
-      const range = editor.getSelection(true) || { index: editor.getLength() }
-      editor.insertEmbed(range.index, 'image', url)
-      editor.setSelection(range.index + 1)
-      setStatus(`Done — image inserted.`)
+      const url = await uploadLessonImage(file, slugify(title || 'lesson-image'))
+      setContentHtml(prev => prev + `<p><img src="${url}" alt="Lesson image" /></p>`)
     } catch (err) {
-      setStatus(`Upload failed: ${err.message}`)
+      setError('Image upload failed: ' + err.message)
     } finally {
-      e.target.value = ''
+      setUploadingImage(false)
     }
   }
 
-  const modules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ header: [2, 3, false] }],
-        ['bold', 'italic', 'underline'],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        ['clean']
-      ]
-    }
-  }), [])
-
-  const previewModules = useMemo(() => ({
-    toolbar: [['bold', 'italic'], ['clean']]
-  }), [])
-
-  async function handleSave(status) {
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!topicId) return setError('Please select a topic.')
     setSaving(true)
     setError('')
-    setSavedMessage('')
     try {
-      await upsertLesson({
+      const payload = {
         topic_id: topicId,
         title,
-        slug: lessonSlug,
+        slug: slugify(title),
         preview_html: previewHtml,
         content_html: contentHtml,
-        status,
-        sort_order: 0
-      })
-      setSavedMessage(status === 'draft' ? 'Saved as draft.' : 'Published.')
+        status
+      }
+
+      if (isEditing) {
+        await updateLesson(id, payload)
+      } else {
+        await createLesson({ ...payload, sort_order: 0 })
+      }
+      navigate('/admin/manage')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -107,100 +104,84 @@ export default function AdminLessonEditor() {
     }
   }
 
+  if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
+
   return (
-    <div className="max-w-2xl">
-      <span className="specimen-label mb-3 block w-fit">Admin · New lesson</span>
-      <h1 className="font-display text-2xl font-semibold mb-6">Write a lesson</h1>
+    <div className="max-w-3xl">
+      <span className="specimen-label mb-3 block w-fit">Admin · {isEditing ? 'Edit lesson' : 'New lesson'}</span>
+      <h1 className="font-display text-2xl font-semibold mb-6">{isEditing ? 'Edit lesson' : 'Write a lesson'}</h1>
 
-      <div className="grid sm:grid-cols-2 gap-4 mb-4">
-        <Field label="Subject">
-          <select value={subjectId} onChange={e => setSubjectId(e.target.value)} className="input">
-            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </Field>
-        <Field label="Topic">
-          <select value={topicId} onChange={e => setTopicId(e.target.value)} className="input">
-            {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </Field>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <span className="block text-sm text-slate mb-1">Subject</span>
+            <select
+              value={subjectId}
+              onChange={e => setSubjectId(e.target.value)}
+              className="input"
+            >
+              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </label>
 
-      <Field label="Lesson title">
-        <input value={title} onChange={e => setTitle(e.target.value)} className="input mb-4" placeholder="e.g. Brachial Plexus" />
-      </Field>
+          <label className="block">
+            <span className="block text-sm text-slate mb-1">Topic</span>
+            <select
+              value={topicId}
+              onChange={e => setTopicId(e.target.value)}
+              className="input"
+              required
+            >
+              {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </label>
+        </div>
 
-      <p className="text-sm text-slate mb-1">Free preview (shown to everyone — keep this to one paragraph or image)</p>
-      <div className="bg-white border border-paperDim rounded-card mb-1">
-        <ReactQuill
-          ref={previewQuillRef}
-          theme="snow"
-          value={previewHtml}
-          onChange={setPreviewHtml}
-          modules={previewModules}
-        />
-      </div>
-      
-      <p className="text-sm text-slate mb-1 mt-2">Add image to preview:</p>
-      <div className="mb-1">
-        <input
-          type="file"
-          accept="image/jpeg, image/png, image/webp, image/gif"
-          className="block w-full border border-paperDim p-2 rounded"
-          onChange={e => handlePlainFileUpload(e, previewQuillRef, setPreviewImageStatus)}
-        />
-      </div>
-      <p className="text-xs font-mono text-slate mb-4">{previewImageStatus}</p>
+        <label className="block">
+          <span className="block text-sm text-slate mb-1">Lesson Title</span>
+          <input
+            required
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            className="input"
+            placeholder="e.g. Brachial Plexus"
+          />
+        </label>
 
-      <p className="text-sm text-slate mb-1">Full notes (paywalled until the subject is purchased)</p>
-      <div className="bg-white border border-paperDim rounded-card mb-1">
-        <ReactQuill
-          ref={contentQuillRef}
-          theme="snow"
-          value={contentHtml}
-          onChange={setContentHtml}
-          modules={modules}
-        />
-      </div>
-      
-      <p className="text-sm text-slate mb-1 mt-2">Add image to full notes:</p>
-      <div className="mb-1">
-        <input
-          type="file"
-          accept="image/jpeg, image/png, image/webp, image/gif"
-          className="block w-full border border-paperDim p-2 rounded"
-          onChange={e => handlePlainFileUpload(e, contentQuillRef, setContentImageStatus)}
-        />
-      </div>
-      <p className="text-xs font-mono text-slate mb-4">{contentImageStatus}</p>
+        <div>
+          <span className="block text-sm text-slate mb-1">Free Preview Content</span>
+          <ReactQuill theme="snow" value={previewHtml} onChange={setPreviewHtml} />
+        </div>
 
-      {error && <p className="text-vital text-sm mb-3">{error}</p>}
-      {savedMessage && <p className="text-venous text-sm mb-3">{savedMessage}</p>}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="block text-sm text-slate">Full Notes (Paywalled)</span>
+            <label className="text-xs text-venous cursor-pointer hover:underline">
+              {uploadingImage ? 'Uploading image…' : '+ Embed image'}
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
+            </label>
+          </div>
+          <ReactQuill theme="snow" value={contentHtml} onChange={setContentHtml} />
+        </div>
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => handleSave('draft')}
-          disabled={saving || !title || !topicId}
-          className="btn-secondary"
-        >
-          Save as draft
-        </button>
-        <button
-          onClick={() => handleSave('published')}
-          disabled={saving || !title || !topicId}
-          className="btn-primary"
-        >
-          {saving ? 'Publishing…' : 'Publish'}
-        </button>
-      </div>
+        <div className="flex items-center gap-4">
+          <label className="block">
+            <span className="block text-sm text-slate mb-1">Status</span>
+            <select value={status} onChange={e => setStatus(e.target.value)} className="input w-32">
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+          </label>
+        </div>
+
+        {error && <p className="text-vital text-sm">{error}</p>}
+
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Publish / Save'}
+          </button>
+        </div>
+      </form>
     </div>
   )
-}
-
-function Field({ label, children }) {
-  return (
-    <label className="block">
-      <span className="block text-sm text-slate mb-1">{label}</span>
-      {children}
-    </label>
-  )
-    }
+  }
