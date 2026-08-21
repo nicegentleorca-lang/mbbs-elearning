@@ -1,12 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import ReactQuill, { Quill } from 'react-quill'
+import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
-import ImageResize from 'quill-image-resize-module-react'
 import { supabase } from '../../lib/supabase'
-
-// Register image resize module with Quill
-Quill.register('modules/imageResize', ImageResize)
 
 export default function AdminLessonEditor() {
   const { id } = useParams()
@@ -30,18 +26,14 @@ export default function AdminLessonEditor() {
   const previewQuillRef = useRef(null)
   const fullQuillRef = useRef(null)
 
-  // Configure Quill modules with image resizing enabled
+  // Standard Quill Toolbar (Resizer removed for clean mobile scrolling)
   const quillModules = useMemo(() => ({
     toolbar: [
       [{ header: [1, 2, 3, false] }],
       ['bold', 'italic', 'underline', 'strike', 'blockquote'],
       [{ list: 'ordered' }, { list: 'bullet' }],
       ['link', 'clean']
-    ],
-    imageResize: {
-      parchment: Quill.import('parchment'),
-      modules: ['Resize', 'DisplaySize']
-    }
+    ]
   }), [])
 
   useEffect(() => {
@@ -279,5 +271,5 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-          }
-        
+                          }
+          
