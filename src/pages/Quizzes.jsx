@@ -8,15 +8,14 @@ export default function Quizzes() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadQuizzes()
+    loadData()
   }, [])
 
-  async function loadQuizzes() {
+  async function loadData() {
     setLoading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
-      // Fetch quizzes with topic and subject names
       const { data: qData, error: qErr } = await supabase
         .from('quizzes')
         .select(`
@@ -32,11 +31,10 @@ export default function Quizzes() {
       if (qErr) throw qErr
       setQuizzes(qData || [])
 
-      // Fetch user's previous attempts
       if (user) {
         const { data: attData } = await supabase
           .from('quiz_attempts')
-          .select('quiz_id, score, total_questions, percentage')
+          .select('quiz_id, score, total_questions')
           .eq('user_id', user.id)
 
         const attemptMap = {}
@@ -56,10 +54,9 @@ export default function Quizzes() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
-      <div>
-        <span className="specimen-label mb-2 block w-fit">Practice</span>
+      <div className="border-b border-paperDim pb-4">
+        <span className="specimen-label mb-1 block w-fit">Practice</span>
         <h1 className="font-display text-3xl font-bold text-ink">Topic Quizzes</h1>
-        <p className="text-slate text-sm mt-1">Test your high-yield knowledge with timed topic questions.</p>
       </div>
 
       {quizzes.length === 0 ? (
@@ -82,16 +79,18 @@ export default function Quizzes() {
                   </div>
                   <h2 className="font-display text-lg font-semibold text-ink">{quiz.title}</h2>
                   <p className="text-xs text-slate mt-1">{topicName}</p>
-                  {quiz.description && (
-                    <p className="text-xs text-slate/80 mt-2 line-clamp-2">{quiz.description}</p>
-                  )}
                 </div>
 
                 <div>
                   {attempt ? (
                     <div className="flex items-center justify-between bg-paper p-3 rounded-card border border-paperDim">
                       <span className="text-xs font-mono text-emerald-700 font-bold">Completed</span>
-                      <span className="text-xs font-bold text-ink">{attempt.score}/{attempt.total_questions} ({attempt.percentage}%)</span>
+                      <Link
+                        to={`/quiz/${quiz.id}`}
+                        className="text-xs font-bold text-venous hover:underline"
+                      >
+                        Review ({attempt.score}/{attempt.total_questions}) →
+                      </Link>
                     </div>
                   ) : (
                     <Link
