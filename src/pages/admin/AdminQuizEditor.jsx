@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 const REASON_ASSERTION_OPTIONS = [
@@ -11,6 +11,7 @@ const REASON_ASSERTION_OPTIONS = [
 ]
 
 export default function AdminQuizEditor() {
+  const { quizId } = useParams() // Captures quizId if editing
   const navigate = useNavigate()
 
   const [subjects, setSubjects] = useState([])
@@ -35,17 +36,58 @@ export default function AdminQuizEditor() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [quizId])
 
   async function fetchData() {
     setLoading(true)
-    const [{ data: subData }, { data: topData }] = await Promise.all([
-      supabase.from('subjects').select('*').order('name'),
-      supabase.from('topics').select('*').order('sort_order', { ascending: true })
-    ])
-    setSubjects(subData || [])
-    setTopics(topData || [])
-    setLoading(false)
+    try {
+      // 1. Fetch Subjects and Topics for dropdowns
+      const [{ data: subData }, { data: topData }] = await Promise.all([
+        supabase.from('subjects').select('*').order('name'),
+        supabase.from('topics').select('*').order('sort_order', { ascending: true })
+      ])
+      setSubjects(subData || [])
+      setTopics(topData || [])
+
+      // 2. If quizId exists, load existing quiz & questions
+      if (quizId) {
+        const { data: quiz, error: quizErr } = await supabase
+          .from('quizzes')
+          .select('*')
+          .eq('id', quizId)
+          .single()
+
+        if (quizErr) throw quizErr
+
+        setSelectedTopic(String(quiz.topic_id || ''))
+        setQuizTitle(quiz.title || '')
+        setQuizDescription(quiz.description || '')
+        setTimeLimitMinutes(quiz.time_limit_minutes || 10)
+
+        const { data: qList, error: qErr } = await supabase
+          .from('questions')
+          .select('*')
+          .eq('quiz_id', quizId)
+          .order('sort_order', { ascending: true })
+
+        if (qErr) throw qErr
+
+        if (qList && qList.length > 0) {
+          setQuestions(qList.map(q => ({
+            id: q.id,
+            question_type: q.question_type || 'mcq',
+            prompt: q.prompt || '',
+            options: q.options || ['', '', '', ''],
+            correct_answer: q.correct_answer || '',
+            explanation: q.explanation || ''
+          })))
+        }
+      }
+    } catch (err) {
+      alert('Error loading quiz data: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   function handleAddQuestion() {
@@ -113,23 +155,50 @@ export default function AdminQuizEditor() {
     setSaving(true)
 
     try {
-      // 1. Create Quiz with Time Limit
-      const { data: quizData, error: quizError } = await supabase
-        .from('quizzes')
-        .insert([{
-          topic_id: selectedTopic,
-          title: quizTitle,
-          description: quizDescription,
-          time_limit_minutes: Number(timeLimitMinutes) || 10
-        }])
-        .select()
-        .single()
+      let activeQuizId = quizId
 
-      if (quizError) throw quizError
+      if (quizId) {
+        // Update existing Quiz
+        const { error: updateErr } = await supabase
+          .from('quizzes')
+          .update({
+            topic_id: selectedTopic,
+            title: quizTitle,
+            description: quizDescription,
+            time_limit_minutes: Number(timeLimitMinutes) || 10
+          })
+          .eq('id', quizId)
 
-      // 2. Prepare and insert Questions
+        if (updateErr) throw updateErr
+
+        // Delete old questions before re-inserting modified ones
+        const { error: delErr } = await supabase
+          .from('questions')
+          .delete()
+          .eq('quiz_id', quizId)
+
+        if (delErr) throw delErr
+
+      } else {
+        // Insert new Quiz
+        const { data: quizData, error: quizError } = await supabase
+          .from('quizzes')
+          .insert([{
+            topic_id: selectedTopic,
+            title: quizTitle,
+            description: quizDescription,
+            time_limit_minutes: Number(timeLimitMinutes) || 10
+          }])
+          .select()
+          .single()
+
+        if (quizError) throw quizError
+        activeQuizId = quizData.id
+      }
+
+      // Re-insert Questions
       const questionsToInsert = questions.map((q, index) => ({
-        quiz_id: quizData.id,
+        quiz_id: activeQuizId,
         question_type: q.question_type,
         prompt: q.prompt,
         options: q.options,
@@ -144,8 +213,8 @@ export default function AdminQuizEditor() {
 
       if (qError) throw qError
 
-      alert('Quiz published successfully!')
-      navigate('/admin')
+      alert(quizId ? 'Quiz updated successfully!' : 'Quiz published successfully!')
+      navigate('/admin/manage')
     } catch (err) {
       alert('Error saving quiz: ' + err.message)
     } finally {
@@ -157,7 +226,9 @@ export default function AdminQuizEditor() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-display font-bold text-ink">Create New Quiz</h1>
+      <h1 className="text-2xl font-display font-bold text-ink">
+        {quizId ? 'Edit Quiz' : 'Create New Quiz'}
+      </h1>
 
       {/* Topic Dropdown */}
       <div>
@@ -364,9 +435,9 @@ export default function AdminQuizEditor() {
         disabled={saving}
         className="w-full py-3 bg-venous text-white rounded font-medium hover:bg-venousDark transition disabled:opacity-50"
       >
-        {saving ? 'Publishing Quiz...' : 'Save & Publish Quiz'}
+        {saving ? 'Saving Quiz...' : quizId ? 'Update Quiz' : 'Save & Publish Quiz'}
       </button>
     </form>
   )
-  }
-        
+      }
+            
