@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useParams } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 export default function AdminLessonEditor() {
   const { id } = useParams()
@@ -29,7 +29,7 @@ export default function AdminLessonEditor() {
   async function fetchInitialData() {
     setLoading(true)
     
-    // 1. Fetch all subjects and topics
+    // Fetch all subjects and topics
     const [{ data: subData }, { data: topData }] = await Promise.all([
       supabase.from('subjects').select('*').order('name'),
       supabase.from('topics').select('*').order('title')
@@ -38,7 +38,7 @@ export default function AdminLessonEditor() {
     setSubjects(subData || [])
     setTopics(topData || [])
 
-    // 2. If editing existing lesson, fetch lesson details
+    // If editing an existing lesson, fetch its details
     if (id) {
       const { data: lesson, error } = await supabase
         .from('lessons')
@@ -60,13 +60,12 @@ export default function AdminLessonEditor() {
     setLoading(false)
   }
 
-  // Filter topics based on currently selected subject
   const filteredTopics = topics.filter(t => t.subject_id === selectedSubject)
 
   function handleSubjectChange(e) {
     const subId = e.target.value
     setSelectedSubject(subId)
-    setSelectedTopic('') // reset topic when subject changes
+    setSelectedTopic('')
   }
 
   async function handleImageUpload(e, setContent) {
@@ -233,4 +232,4 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-          }
+}
