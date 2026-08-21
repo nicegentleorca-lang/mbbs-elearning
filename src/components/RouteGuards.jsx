@@ -1,24 +1,30 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-export function RequireAuth({ children }) {
+export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return <CenteredLoading />
-  if (!user) return <Navigate to="/login" replace />
-  return children
+
+  if (loading) {
+    return <p className="text-slate font-mono text-sm p-4">Loading…</p>
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  return children ? children : <Outlet />
 }
 
-export function RequireAdmin({ children }) {
-  const { isAdmin, loading } = useAuth()
-  if (loading) return <CenteredLoading />
-  if (!isAdmin) return <Navigate to="/" replace />
-  return children
-}
+export function AdminRoute({ children }) {
+  const { user, isAdmin, loading } = useAuth()
 
-function CenteredLoading() {
-  return (
-    <div className="flex justify-center py-16 text-slate font-mono text-sm">
-      Loading…
-    </div>
-  )
+  if (loading) {
+    return <p className="text-slate font-mono text-sm p-4">Loading…</p>
+  }
+
+  if (!user || !isAdmin) {
+    return <Navigate to="/" replace />
+  }
+
+  return children ? children : <Outlet />
 }
