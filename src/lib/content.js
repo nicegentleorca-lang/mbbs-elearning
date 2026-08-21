@@ -1,12 +1,22 @@
 import { supabase } from '../supabaseClient'
 
-// ---- Public Reads ----
+// ---- Public & Student Reads ----
 
 export async function getSubjects() {
   const { data, error } = await supabase
     .from('subjects')
     .select('*')
     .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function getSubjectBySlug(slug) {
+  const { data, error } = await supabase
+    .from('subjects')
+    .select('*')
+    .eq('slug', slug)
+    .single()
   if (error) throw error
   return data
 }
@@ -21,6 +31,17 @@ export async function getTopicsBySubject(subjectId) {
   return data
 }
 
+export async function getTopicBySlug(subjectId, topicSlug) {
+  const { data, error } = await supabase
+    .from('topics')
+    .select('*')
+    .eq('subject_id', subjectId)
+    .eq('slug', topicSlug)
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function getLessonsByTopic(topicId) {
   const { data, error } = await supabase
     .from('lessons')
@@ -28,6 +49,52 @@ export async function getLessonsByTopic(topicId) {
     .eq('topic_id', topicId)
     .eq('status', 'published')
     .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function getLessonBySlug(topicId, lessonSlug) {
+  const { data, error } = await supabase
+    .from('lessons')
+    .select('*')
+    .eq('topic_id', topicId)
+    .eq('slug', lessonSlug)
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ---- Purchases & Unlocks ----
+
+export async function hasPurchasedSubject(userId, subjectId) {
+  if (!userId || !subjectId) return false
+  const { data, error } = await supabase
+    .from('purchases')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('subject_id', subjectId)
+    .eq('status', 'completed')
+    .maybeSingle()
+  if (error) throw error
+  return Boolean(data)
+}
+
+export async function getUserPurchases(userId) {
+  const { data, error } = await supabase
+    .from('purchases')
+    .select('subject_id')
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+  if (error) throw error
+  return data ? data.map(p => p.subject_id) : []
+}
+
+export async function createPurchase(purchase) {
+  const { data, error } = await supabase
+    .from('purchases')
+    .insert(purchase)
+    .select()
+    .single()
   if (error) throw error
   return data
 }
@@ -140,4 +207,3 @@ export async function deleteLesson(id) {
   const { error } = await supabase.from('lessons').delete().eq('id', id)
   if (error) throw error
 }
-  
