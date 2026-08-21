@@ -28,7 +28,7 @@ export default function AdminLessonEditor() {
   async function fetchInitialData() {
     setLoading(true)
     
-    // Fetch subjects and topics using your exact column 'sort_order'
+    // Fetch subjects and topics
     const [{ data: subData }, { data: topData }] = await Promise.all([
       supabase.from('subjects').select('*').order('name'),
       supabase.from('topics').select('*').order('sort_order', { ascending: true })
@@ -37,7 +37,7 @@ export default function AdminLessonEditor() {
     setSubjects(subData || [])
     setTopics(topData || [])
 
-    // Fetch existing lesson data
+    // Fetch existing lesson data with exact column names (preview_html, content_html)
     if (id) {
       const { data: lesson } = await supabase
         .from('lessons')
@@ -47,8 +47,8 @@ export default function AdminLessonEditor() {
 
       if (lesson) {
         setTitle(lesson.title || '')
-        setPreviewContent(lesson.preview_content || '')
-        setFullContent(lesson.content || '')
+        setPreviewContent(lesson.preview_html || '')
+        setFullContent(lesson.content_html || '')
         setSelectedTopic(String(lesson.topic_id || ''))
       }
     }
@@ -89,11 +89,13 @@ export default function AdminLessonEditor() {
     }
 
     setSaving(true)
+    
+    // Payload matching exact Supabase column names
     const payload = {
       title,
       topic_id: selectedTopic,
-      preview_content: previewContent,
-      content: fullContent,
+      preview_html: previewContent,
+      content_html: fullContent,
       updated_at: new Date()
     }
 
@@ -125,7 +127,7 @@ export default function AdminLessonEditor() {
         {id ? 'Edit Lesson' : 'Create Lesson'}
       </h1>
 
-      {/* Unified Grouped Dropdown */}
+      {/* Grouped Topic Dropdown */}
       <div>
         <label className="block text-sm font-medium text-slate mb-1">Topic</label>
         <select
@@ -225,5 +227,4 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-}
-  
+                                                                      }
