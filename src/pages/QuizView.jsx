@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function QuizView() {
   const { quizId } = useParams()
-  const navigate = useNavigate()
   const canvasRef = useRef(null)
 
   const [loading, setLoading] = useState(true)
@@ -12,15 +11,13 @@ export default function QuizView() {
   const [questions, setQuestions] = useState([])
   const [userAnswers, setUserAnswers] = useState({})
   
-  // Timer & Quiz State
   const [timeLeft, setTimeLeft] = useState(0)
   const [quizStarted, setQuizStarted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Results State
   const [score, setScore] = useState(0)
-  const [percentile, setPercentile] = useState(0)
+  const [rankBadge, setRankBadge] = useState({ text: '', desc: '' })
   const [alreadyAttempted, setAlreadyAttempted] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
 
@@ -28,7 +25,6 @@ export default function QuizView() {
     loadQuizData()
   }, [quizId])
 
-  // Countdown Timer Logic
   useEffect(() => {
     if (!quizStarted || submitted || timeLeft <= 0) return
 
@@ -52,7 +48,6 @@ export default function QuizView() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
 
-      // 1. Fetch Quiz & Questions
       const { data: qData, error: qErr } = await supabase
         .from('quizzes')
         .select('*')
@@ -72,7 +67,6 @@ export default function QuizView() {
       if (questErr) throw questErr
       setQuestions(questData || [])
 
-      // 2. Check for Previous Attempt (Strict 1-attempt rule)
       if (user) {
         const { data: attemptData } = await supabase
           .from('quiz_attempts')
@@ -84,12 +78,15 @@ export default function QuizView() {
         if (attemptData) {
           setAlreadyAttempted(true)
           setScore(attemptData.score)
+          if (attemptData.answers) {
+            setUserAnswers(attemptData.answers)
+          }
           setSubmitted(true)
-          await computePercentile(quizId, attemptData.score)
+          await computeRank(quizId, attemptData.score, questData.length)
         }
       }
     } catch (err) {
-      alert('Error loading quiz: ' + err.message)
+      console.error('Error loading quiz:', err)
     } finally {
       setLoading(false)
     }
@@ -98,10 +95,6 @@ export default function QuizView() {
   function handleSelectAnswer(questionId, option) {
     if (submitted) return
     setUserAnswers(prev => ({ ...prev, [questionId]: option }))
-  }
-
-  function startQuiz() {
-    setQuizStarted(true)
   }
 
   async function handleAutoSubmit() {
@@ -113,7 +106,6 @@ export default function QuizView() {
     if (submitted || submitting) return
     setSubmitting(true)
 
-    // Calculate score
     let calculatedScore = 0
     questions.forEach(q => {
       if (userAnswers[q.id] === q.correct_answer) {
@@ -126,23 +118,21 @@ export default function QuizView() {
 
     try {
       if (currentUser) {
-        // Save Attempt to Database
-        const { error: attemptErr } = await supabase
+        await supabase
           .from('quiz_attempts')
           .insert([{
             quiz_id: quizId,
             user_id: currentUser.id,
             score: calculatedScore,
             total_questions: totalQuestions,
-            percentage: percentage
+            percentage: percentage,
+            answers: userAnswers
           }])
-
-        if (attemptErr) throw attemptErr
       }
 
       setScore(calculatedScore)
       setSubmitted(true)
-      await computePercentile(quizId, calculatedScore)
+      await computeRank(quizId, calculatedScore, totalQuestions)
     } catch (err) {
       alert('Submission failed: ' + err.message)
     } finally {
@@ -150,21 +140,32 @@ export default function QuizView() {
     }
   }
 
-  async function computePercentile(quizId, userScore) {
+  // Fair ranking algorithm
+  async function computeRank(quizId, userScore, totalQuestions) {
+    const pct = Math.round((userScore / totalQuestions) * 100)
+    
     const { data: allAttempts } = await supabase
       .from('quiz_attempts')
       .select('score')
       .eq('quiz_id', quizId)
 
-    if (!allAttempts || allAttempts.length <= 1) {
-      setPercentile(100)
+    if (!allAttempts || allAttempts.length < 5) {
+      if (pct >= 90) setRankBadge({ text: 'Top 5%', desc: 'Outstanding! Excellent performance.' })
+      else if (pct >= 66) setRankBadge({ text: 'Top 20%', desc: 'Great job! Strong grasp of core concepts.' })
+      else if (pct >= 50) setRankBadge({ text: 'Top 50%', desc: 'Good effort. A quick review will sharpen your knowledge.' })
+      else setRankBadge({ text: 'Needs Work', desc: 'Review the topic materials and try again!' })
       return
     }
 
-    const lowerScores = allAttempts.filter(a => a.score < userScore).length
-    const rankPercentage = Math.round((lowerScores / allAttempts.length) * 100)
-    const percentileVal = Math.min(99, Math.max(1, rankPercentage === 0 ? 5 : rankPercentage))
-    setPercentile(percentileVal)
+    const lower = allAttempts.filter(a => a.score < userScore).length
+    const equal = allAttempts.filter(a => a.score === userScore).length
+    const percentile = Math.round(((lower + 0.5 * equal) / allAttempts.length) * 100)
+    const topRank = Math.max(1, 100 - percentile)
+
+    setRankBadge({
+      text: `Top ${topRank}%`,
+      desc: `Scored better than ${percentile}% of medical students on this quiz.`
+    })
   }
 
   function handleShareCard() {
@@ -172,15 +173,11 @@ export default function QuizView() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
-    // Canvas Background & Layout
     ctx.fillStyle = '#0F172A'
     ctx.fillRect(0, 0, 600, 600)
-
-    // Header Accent Bar
     ctx.fillStyle = '#22C55E'
     ctx.fillRect(40, 40, 520, 12)
 
-    // Title & Branding
     ctx.fillStyle = '#F8FAFC'
     ctx.font = 'bold 28px sans-serif'
     ctx.fillText('MBBS ACADEMY', 40, 90)
@@ -189,31 +186,27 @@ export default function QuizView() {
     ctx.font = '18px sans-serif'
     ctx.fillText(quiz?.title || 'Topic Quiz', 40, 125)
 
-    // Central Stat Container
     ctx.fillStyle = '#1E293B'
     ctx.beginPath()
     ctx.roundRect(40, 160, 520, 280, 16)
     ctx.fill()
 
-    // Percentile & Score
     ctx.fillStyle = '#38BDF8'
     ctx.font = 'bold 64px sans-serif'
-    ctx.fillText(`TOP ${100 - percentile}%`, 70, 250)
+    ctx.fillText(rankBadge.text, 70, 250)
 
     ctx.fillStyle = '#F8FAFC'
-    ctx.font = '22px sans-serif'
-    ctx.fillText(`Scored better than ${percentile}% of medical students`, 70, 295)
+    ctx.font = '20px sans-serif'
+    ctx.fillText(rankBadge.desc, 70, 300)
 
     ctx.fillStyle = '#94A3B8'
     ctx.font = '20px sans-serif'
     ctx.fillText(`Score: ${score} / ${questions.length} (${Math.round((score / questions.length) * 100)}%)`, 70, 360)
 
-    // Footer
     ctx.fillStyle = '#64748B'
     ctx.font = '16px monospace'
     ctx.fillText('mbbs-elearning.app • Master MBBS Concepts', 40, 520)
 
-    // Trigger Mobile Native Share Sheet or Direct Download
     canvas.toBlob(blob => {
       if (!blob) return
       const file = new File([blob], 'quiz-rank-card.png', { type: 'image/png' })
@@ -221,7 +214,7 @@ export default function QuizView() {
         navigator.share({
           files: [file],
           title: 'My Quiz Score',
-          text: `I just scored in the top ${100 - percentile}% on ${quiz?.title}!`
+          text: `I scored ${score}/${questions.length} on ${quiz?.title}!`
         }).catch(() => {})
       } else {
         const link = document.createElement('a')
@@ -240,7 +233,6 @@ export default function QuizView() {
 
   if (loading) return <div className="p-8 text-center font-mono text-slate">Loading quiz...</div>
 
-  // --- PRE-QUIZ LANDING VIEW ---
   if (!quizStarted && !submitted) {
     return (
       <div className="max-w-2xl mx-auto p-6 text-center space-y-6">
@@ -264,7 +256,7 @@ export default function QuizView() {
         </div>
 
         <button
-          onClick={startQuiz}
+          onClick={() => setQuizStarted(true)}
           className="w-full py-3 bg-venous text-white rounded-card font-medium hover:bg-venousDark transition shadow-md"
         >
           Begin Quiz
@@ -273,15 +265,13 @@ export default function QuizView() {
     )
   }
 
-  // --- SUBMITTED / RESULTS VIEW ---
   if (submitted) {
     return (
       <div className="max-w-3xl mx-auto p-4 space-y-6">
-        {/* Score & Percentile Rank Card */}
         <div className="bg-slate-900 text-white p-6 rounded-card text-center space-y-4 shadow-lg">
           {alreadyAttempted && (
             <span className="bg-amber-500/20 text-amber-300 text-xs font-mono px-3 py-1 rounded-full border border-amber-500/30">
-              Attempt Completed
+              Completed Attempt
             </span>
           )}
           <h1 className="text-2xl font-display font-bold">{quiz?.title} Results</h1>
@@ -292,14 +282,12 @@ export default function QuizView() {
               <p className="text-3xl font-bold text-emerald-400">{score} / {questions.length}</p>
             </div>
             <div className="bg-slate-800 p-4 rounded-lg">
-              <p className="text-xs text-slate-400 font-mono">PERCENTILE RANK</p>
-              <p className="text-3xl font-bold text-sky-400">Top {100 - percentile}%</p>
+              <p className="text-xs text-slate-400 font-mono">RANK TIER</p>
+              <p className="text-3xl font-bold text-sky-400">{rankBadge.text}</p>
             </div>
           </div>
 
-          <p className="text-sm text-slate-300">
-            You scored better than <strong className="text-sky-300">{percentile}%</strong> of medical students who completed this topic quiz.
-          </p>
+          <p className="text-sm text-slate-300">{rankBadge.desc}</p>
 
           <button
             onClick={handleShareCard}
@@ -309,30 +297,38 @@ export default function QuizView() {
           </button>
         </div>
 
-        {/* Hidden Canvas for Card Generation */}
         <canvas ref={canvasRef} width="600" height="600" className="hidden" />
 
-        {/* Question Review & Explanations */}
         <div className="space-y-6">
           <h2 className="text-xl font-bold text-ink">Answer Review & Explanations</h2>
           {questions.map((q, idx) => {
             const userChoice = userAnswers[q.id]
+            const hasChosen = userChoice !== undefined
             const isCorrect = userChoice === q.correct_answer
+
+            let statusBadge = null
+            if (hasChosen) {
+              statusBadge = (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                  isCorrect ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
+                }`}>
+                  {isCorrect ? 'Correct' : 'Incorrect'}
+                </span>
+              )
+            }
 
             return (
               <div
                 key={q.id}
                 className={`p-5 rounded-card border ${
-                  isCorrect ? 'bg-emerald-50/50 border-emerald-200' : 'bg-red-50/50 border-red-200'
+                  hasChosen
+                    ? isCorrect ? 'bg-emerald-50/50 border-emerald-200' : 'bg-red-50/50 border-red-200'
+                    : 'bg-white border-paperDim'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-mono text-xs font-bold text-slate">Question #{idx + 1}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                    isCorrect ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
-                  }`}>
-                    {isCorrect ? 'Correct' : 'Incorrect'}
-                  </span>
+                  {statusBadge}
                 </div>
 
                 <p className="font-medium text-ink mb-4 whitespace-pre-line">{q.prompt}</p>
@@ -367,10 +363,8 @@ export default function QuizView() {
     )
   }
 
-  // --- ACTIVE QUIZ PLAYING VIEW ---
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
-      {/* Floating Timer Header */}
       <div className="sticky top-2 z-10 bg-white/95 backdrop-blur border border-paperDim p-4 rounded-card flex items-center justify-between shadow-sm">
         <div>
           <h2 className="font-bold text-ink text-sm md:text-base">{quiz?.title}</h2>
@@ -383,7 +377,6 @@ export default function QuizView() {
         </div>
       </div>
 
-      {/* Questions List */}
       <div className="space-y-6">
         {questions.map((q, qIdx) => (
           <div key={q.id} className="bg-white p-5 border border-paperDim rounded-card space-y-4 shadow-sm">
@@ -413,7 +406,6 @@ export default function QuizView() {
         ))}
       </div>
 
-      {/* Submit Button */}
       <button
         onClick={handleSubmit}
         disabled={submitting}
@@ -423,5 +415,5 @@ export default function QuizView() {
       </button>
     </div>
   )
-            }
-          
+                             }
+              
