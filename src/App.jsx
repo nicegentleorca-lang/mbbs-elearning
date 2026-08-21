@@ -15,6 +15,7 @@ import AdminManage from './pages/admin/AdminManage'
 import AdminSubjectForm from './pages/admin/AdminSubjectForm'
 import AdminTopicForm from './pages/admin/AdminTopicForm'
 import AdminLessonEditor from './pages/admin/AdminLessonEditor'
+import AdminQuizEditor from './pages/admin/AdminQuizEditor'
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/admin/topics/:id/edit" element={<AdminRoute><AdminTopicForm /></AdminRoute>} />
         <Route path="/admin/lessons/new" element={<AdminRoute><AdminLessonEditor /></AdminRoute>} />
         <Route path="/admin/lessons/:id/edit" element={<AdminRoute><AdminLessonEditor /></AdminRoute>} />
+        <Route path="/admin/quiz/new" element={<AdminRoute><AdminQuizEditor /></AdminRoute>} />
       </Route>
     </Routes>
   )
