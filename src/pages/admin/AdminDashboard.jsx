@@ -22,6 +22,10 @@ export default function AdminDashboard() {
           <h2 className="font-display text-lg font-semibold">+ New lesson</h2>
           <p className="text-slate text-sm mt-1">Write notes with embedded images, save as draft or publish.</p>
         </Link>
+        <Link to="/admin/quiz/new" className="index-card p-5 block border-venous/30">
+          <h2 className="font-display text-lg font-semibold text-venous">+ New quiz</h2>
+          <p className="text-slate text-sm mt-1">Create timed MCQs, True/False, or Reason & Assertion quizzes for a topic.</p>
+        </Link>
       </div>
     </div>
   )
