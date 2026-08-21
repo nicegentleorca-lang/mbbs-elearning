@@ -22,6 +22,7 @@ export default function Layout({ children }) {
               <>
                 <Link to="/" className="text-slate hover:text-ink">Subjects</Link>
                 <Link to="/quizzes" className="text-slate hover:text-ink">Quizzes</Link>
+                <Link to="/history" className="text-slate hover:text-ink">History</Link>
               </>
             )}
             {isAdmin && (
