@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Layout({ children }) {
@@ -35,7 +35,9 @@ export default function Layout({ children }) {
           </nav>
         </div>
       </header>
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6">{children}</main>
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
+        {children || <Outlet />}
+      </main>
       <footer className="border-t border-paperDim py-4 text-center text-xs text-slate-light font-mono">
         Preclinical Notes — Anatomy · Biochemistry · Physiology
       </footer>
