@@ -1,8 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import ReactQuill from 'react-quill'
+import ReactQuill, { Quill } from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
+import ImageResize from 'quill-image-resize-module-react'
 import { supabase } from '../../lib/supabase'
+
+// Register image resize module with Quill
+Quill.register('modules/imageResize', ImageResize)
 
 export default function AdminLessonEditor() {
   const { id } = useParams()
@@ -22,9 +26,23 @@ export default function AdminLessonEditor() {
   const previewFileInputRef = useRef(null)
   const fullFileInputRef = useRef(null)
 
-  // Quill Editor refs (used for cursor position insertion)
+  // Quill Editor refs
   const previewQuillRef = useRef(null)
   const fullQuillRef = useRef(null)
+
+  // Configure Quill modules with image resizing enabled
+  const quillModules = useMemo(() => ({
+    toolbar: [
+      [{ header: [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['link', 'clean']
+    ],
+    imageResize: {
+      parchment: Quill.import('parchment'),
+      modules: ['Resize', 'DisplaySize']
+    }
+  }), [])
 
   useEffect(() => {
     fetchInitialData()
@@ -220,6 +238,7 @@ export default function AdminLessonEditor() {
           theme="snow" 
           value={previewContent} 
           onChange={setPreviewContent} 
+          modules={quillModules}
         />
       </div>
 
@@ -247,6 +266,7 @@ export default function AdminLessonEditor() {
           theme="snow" 
           value={fullContent} 
           onChange={setFullContent} 
+          modules={quillModules}
         />
       </div>
 
@@ -259,4 +279,5 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-      }
+          }
+        
