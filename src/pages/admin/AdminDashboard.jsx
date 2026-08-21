@@ -6,6 +6,10 @@ export default function AdminDashboard() {
       <span className="specimen-label mb-3 block w-fit">Admin</span>
       <h1 className="font-display text-3xl font-semibold mb-6">Content management</h1>
       <div className="grid gap-4 sm:grid-cols-2">
+        <Link to="/admin/manage" className="index-card p-5 block border-venous/50 bg-paper/50">
+          <h2 className="font-display text-lg font-semibold text-venous">⚙ Manage / Delete content</h2>
+          <p className="text-slate text-sm mt-1">Browse, edit, or delete existing subjects, topics, and lessons.</p>
+        </Link>
         <Link to="/admin/subjects/new" className="index-card p-5 block">
           <h2 className="font-display text-lg font-semibold">+ New subject</h2>
           <p className="text-slate text-sm mt-1">Add Anatomy, Biochemistry, Physiology, etc.</p>
