@@ -10,7 +10,8 @@ body {
   @apply bg-paper text-ink font-sans antialiased;
 }
 
-/* Signature element: a "specimen label" — used on subject/topic headers */
+/* Signature element: a "specimen label" — used on subject/topic headers.
+   Small-caps eyebrow + hairline corner ticks, like a museum specimen card. */
 .specimen-label {
   @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate;
   padding: 0.35rem 0.75rem;
@@ -68,20 +69,14 @@ body {
   * { animation: none !important; transition: none !important; }
 }
 
-/* Force inserted images to default to 60% container width */
+/* Force all embedded images to default to 70% width */
 .ql-editor img,
 .prose img,
 .lesson-content img {
-  width: 60% !important;
+  width: 70% !important;
   max-width: 100% !important;
   height: auto !important;
   display: block !important;
   margin: 1.5rem auto !important;
   border-radius: 6px;
-}
-
-/* Touch handler safety override */
-.ql-editor img + div,
-[style*="position: absolute"][style*="border"] {
-  touch-action: none !important;
 }
