@@ -10,8 +10,7 @@ body {
   @apply bg-paper text-ink font-sans antialiased;
 }
 
-/* Signature element: a "specimen label" — used on subject/topic headers.
-   Small-caps eyebrow + hairline corner ticks, like a museum specimen card. */
+/* Signature element: a "specimen label" — used on subject/topic headers */
 .specimen-label {
   @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate;
   padding: 0.35rem 0.75rem;
@@ -69,7 +68,7 @@ body {
   * { animation: none !important; transition: none !important; }
 }
 
-/* Responsive formatting for embedded lesson images */
+/* Image Formatting */
 .ql-editor img,
 .prose img,
 .lesson-content img {
@@ -78,4 +77,10 @@ body {
   display: block;
   margin: 1.5rem auto;
   border-radius: 6px;
+}
+
+/* Prevents page scrolling when touching resize handles */
+.ql-editor img + div,
+[style*="position: absolute"][style*="border"] {
+  touch-action: none !important;
 }
