@@ -10,6 +10,10 @@ import TopicPage from './pages/TopicPage'
 import LessonPage from './pages/LessonPage'
 import UnlockSubject from './pages/UnlockSubject'
 
+// Quiz Pages
+import Quizzes from './pages/Quizzes'
+import QuizView from './pages/QuizView'
+
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminManage from './pages/admin/AdminManage'
 import AdminSubjectForm from './pages/admin/AdminSubjectForm'
@@ -25,6 +29,11 @@ export default function App() {
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Dashboard />} />
+        
+        {/* Quiz Routes */}
+        <Route path="/quizzes" element={<Quizzes />} />
+        <Route path="/quiz/:quizId" element={<QuizView />} />
+
         <Route path="/subjects/:subjectSlug" element={<SubjectPage />} />
         <Route path="/subjects/:subjectSlug/unlock" element={<UnlockSubject />} />
         <Route path="/subjects/:subjectSlug/:topicSlug" element={<TopicPage />} />
