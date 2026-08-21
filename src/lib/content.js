@@ -1,20 +1,12 @@
 import { supabase } from '../supabaseClient'
 
+// ---- Public Reads ----
+
 export async function getSubjects() {
   const { data, error } = await supabase
     .from('subjects')
     .select('*')
     .order('sort_order', { ascending: true })
-  if (error) throw error
-  return data
-}
-
-export async function getSubjectBySlug(slug) {
-  const { data, error } = await supabase
-    .from('subjects')
-    .select('*')
-    .eq('slug', slug)
-    .single()
   if (error) throw error
   return data
 }
@@ -29,21 +21,10 @@ export async function getTopicsBySubject(subjectId) {
   return data
 }
 
-export async function getTopicBySlug(subjectId, slug) {
-  const { data, error } = await supabase
-    .from('topics')
-    .select('*')
-    .eq('subject_id', subjectId)
-    .eq('slug', slug)
-    .single()
-  if (error) throw error
-  return data
-}
-
 export async function getLessonsByTopic(topicId) {
   const { data, error } = await supabase
     .from('lessons')
-    .select('id, topic_id, title, slug, preview_html, sort_order, status')
+    .select('id, topic_id, title, slug, preview_html, status, sort_order')
     .eq('topic_id', topicId)
     .eq('status', 'published')
     .order('sort_order', { ascending: true })
@@ -51,53 +32,39 @@ export async function getLessonsByTopic(topicId) {
   return data
 }
 
-export async function getLessonBySlug(topicId, slug) {
-  const { data, error } = await supabase
-    .from('lessons')
-    .select('*')
-    .eq('topic_id', topicId)
-    .eq('slug', slug)
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function hasPurchasedSubject(userId, subjectId) {
-  if (!userId) return false
-  const { data, error } = await supabase
-    .from('purchases')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('subject_id', subjectId)
-    .eq('status', 'completed')
-    .maybeSingle()
-  if (error) throw error
-  return !!data
-}
-
-// ---- Admin write operations ----
+// ---- Admin: Create ----
 
 export async function createSubject(subject) {
-  const { data, error } = await supabase.from('subjects').insert(subject).select().single()
-  if (error) throw error
-  return data
-}
-
-export async function createTopic(topic) {
-  const { data, error } = await supabase.from('topics').insert(topic).select().single()
-  if (error) throw error
-  return data
-}
-
-export async function upsertLesson(lesson) {
   const { data, error } = await supabase
-    .from('lessons')
-    .upsert(lesson, { onConflict: 'topic_id,slug' })
+    .from('subjects')
+    .insert(subject)
     .select()
     .single()
   if (error) throw error
   return data
 }
+
+export async function createTopic(topic) {
+  const { data, error } = await supabase
+    .from('topics')
+    .insert(topic)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function createLesson(lesson) {
+  const { data, error } = await supabase
+    .from('lessons')
+    .insert(lesson)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ---- Admin: Storage ----
 
 export async function uploadLessonImage(file, lessonSlug) {
   const path = `${lessonSlug}/${Date.now()}-${file.name}`
@@ -106,7 +73,8 @@ export async function uploadLessonImage(file, lessonSlug) {
   const { data } = supabase.storage.from('lesson-images').getPublicUrl(path)
   return data.publicUrl
 }
-// ---- Admin: read single records for editing ----
+
+// ---- Admin: Read single records for editing ----
 
 export async function getSubjectById(id) {
   const { data, error } = await supabase.from('subjects').select('*').eq('id', id).single()
@@ -126,7 +94,6 @@ export async function getLessonById(id) {
   return data
 }
 
-// Admin view of a topic's lessons — includes drafts, unlike getLessonsByTopic.
 export async function getAllLessonsByTopicAdmin(topicId) {
   const { data, error } = await supabase
     .from('lessons')
@@ -137,7 +104,7 @@ export async function getAllLessonsByTopicAdmin(topicId) {
   return data
 }
 
-// ---- Admin: update ----
+// ---- Admin: Update ----
 
 export async function updateSubject(id, fields) {
   const { data, error } = await supabase.from('subjects').update(fields).eq('id', id).select().single()
@@ -157,9 +124,7 @@ export async function updateLesson(id, fields) {
   return data
 }
 
-// ---- Admin: delete ----
-// Deleting a subject also deletes its topics and lessons (cascade in the
-// database). Deleting a topic also deletes its lessons.
+// ---- Admin: Delete ----
 
 export async function deleteSubject(id) {
   const { error } = await supabase.from('subjects').delete().eq('id', id)
@@ -174,4 +139,5 @@ export async function deleteTopic(id) {
 export async function deleteLesson(id) {
   const { error } = await supabase.from('lessons').delete().eq('id', id)
   if (error) throw error
-    }
+}
+  
