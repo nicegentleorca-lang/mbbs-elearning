@@ -13,7 +13,7 @@ import UnlockSubject from './pages/UnlockSubject'
 // Quiz Pages
 import Quizzes from './pages/Quizzes'
 import QuizView from './pages/QuizView'
-import QuizHistory from './pages/QuizHistory' // 👈 Add this import
+import QuizHistory from './pages/QuizHistory'
 
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminManage from './pages/admin/AdminManage'
@@ -33,7 +33,7 @@ export default function App() {
         
         {/* Quiz Routes */}
         <Route path="/quizzes" element={<Quizzes />} />
-        <Route path="/history" element={<QuizHistory />} /> {/* 👈 Add this route */}
+        <Route path="/history" element={<QuizHistory />} />
         <Route path="/quiz/:quizId" element={<QuizView />} />
 
         <Route path="/subjects/:subjectSlug" element={<SubjectPage />} />
@@ -51,6 +51,7 @@ export default function App() {
         <Route path="/admin/lessons/new" element={<AdminRoute><AdminLessonEditor /></AdminRoute>} />
         <Route path="/admin/lessons/:id/edit" element={<AdminRoute><AdminLessonEditor /></AdminRoute>} />
         <Route path="/admin/quiz/new" element={<AdminRoute><AdminQuizEditor /></AdminRoute>} />
+        <Route path="/admin/quizzes/:quizId/edit" element={<AdminRoute><AdminQuizEditor /></AdminRoute>} />
       </Route>
     </Routes>
   )
