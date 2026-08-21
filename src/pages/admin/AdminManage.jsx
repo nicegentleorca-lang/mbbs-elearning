@@ -4,6 +4,7 @@ import {
   getSubjects, getTopicsBySubject, getAllLessonsByTopicAdmin,
   deleteSubject, deleteTopic, deleteLesson
 } from '../../lib/content'
+import { supabase } from '../../lib/supabase'
 
 export default function AdminManage() {
   const [subjects, setSubjects] = useState([])
@@ -13,6 +14,7 @@ export default function AdminManage() {
   const [topicsBySubject, setTopicsBySubject] = useState({})
   const [expandedTopic, setExpandedTopic] = useState(null)
   const [lessonsByTopic, setLessonsByTopic] = useState({})
+  const [quizzesByTopic, setQuizzesByTopic] = useState({})
 
   useEffect(() => {
     loadSubjects()
@@ -57,6 +59,18 @@ export default function AdminManage() {
         setError(err.message)
       }
     }
+    if (!quizzesByTopic[topic.id]) {
+      try {
+        const { data: qData, error: qErr } = await supabase
+          .from('quizzes')
+          .select('*')
+          .eq('topic_id', topic.id)
+        if (qErr) throw qErr
+        setQuizzesByTopic(prev => ({ ...prev, [topic.id]: qData || [] }))
+      } catch (err) {
+        setError(err.message)
+      }
+    }
   }
 
   async function handleDeleteSubject(subject) {
@@ -88,6 +102,20 @@ export default function AdminManage() {
       await deleteLesson(lesson.id)
       const lessons = await getAllLessonsByTopicAdmin(topicId)
       setLessonsByTopic(prev => ({ ...prev, [topicId]: lessons }))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleDeleteQuiz(quiz, topicId) {
+    if (!window.confirm(`Delete quiz "${quiz.title}"? This will delete all its questions and student attempts.`)) return
+    try {
+      const { error } = await supabase.from('quizzes').delete().eq('id', quiz.id)
+      if (error) throw error
+      setQuizzesByTopic(prev => ({
+        ...prev,
+        [topicId]: prev[topicId].filter(q => q.id !== quiz.id)
+      }))
     } catch (err) {
       setError(err.message)
     }
@@ -135,22 +163,43 @@ export default function AdminManage() {
                     </div>
 
                     {expandedTopic === topic.id && (
-                      <div className="border-t border-paperDim px-3 py-2 space-y-2">
-                        {(lessonsByTopic[topic.id] || []).map(lesson => (
-                          <div key={lesson.id} className="flex items-center justify-between gap-3 py-1">
-                            <span className="text-sm flex-1">
-                              {lesson.title}
-                              {lesson.status === 'draft' && (
-                                <span className="ml-2 text-xs font-mono text-gold">draft</span>
-                              )}
-                            </span>
-                            <Link to={`/admin/lessons/${lesson.id}/edit`} className="btn-secondary text-xs py-1 px-2">Edit</Link>
-                            <button onClick={() => handleDeleteLesson(lesson, topic.id)} className="text-vital text-xs hover:underline">Delete</button>
-                          </div>
-                        ))}
-                        {(lessonsByTopic[topic.id] || []).length === 0 && (
-                          <p className="text-slate text-xs">No lessons yet.</p>
-                        )}
+                      <div className="border-t border-paperDim px-3 py-2 space-y-3">
+                        {/* Lessons List */}
+                        <div>
+                          <span className="text-[10px] font-mono text-slate uppercase font-bold block mb-1">Lessons</span>
+                          {(lessonsByTopic[topic.id] || []).map(lesson => (
+                            <div key={lesson.id} className="flex items-center justify-between gap-3 py-1">
+                              <span className="text-sm flex-1">
+                                {lesson.title}
+                                {lesson.status === 'draft' && (
+                                  <span className="ml-2 text-xs font-mono text-gold">draft</span>
+                                )}
+                              </span>
+                              <Link to={`/admin/lessons/${lesson.id}/edit`} className="btn-secondary text-xs py-1 px-2">Edit</Link>
+                              <button onClick={() => handleDeleteLesson(lesson, topic.id)} className="text-vital text-xs hover:underline">Delete</button>
+                            </div>
+                          ))}
+                          {(lessonsByTopic[topic.id] || []).length === 0 && (
+                            <p className="text-slate text-xs">No lessons yet.</p>
+                          )}
+                        </div>
+
+                        {/* Quizzes List */}
+                        <div className="pt-2 border-t border-paperDim/50">
+                          <span className="text-[10px] font-mono text-slate uppercase font-bold block mb-1">Quizzes</span>
+                          {(quizzesByTopic[topic.id] || []).map(quiz => (
+                            <div key={quiz.id} className="flex items-center justify-between gap-3 py-1">
+                              <span className="text-sm flex-1 font-medium">
+                                📝 {quiz.title}
+                              </span>
+                              <Link to={`/admin/quizzes/${quiz.id}/edit`} className="btn-secondary text-xs py-1 px-2">Edit</Link>
+                              <button onClick={() => handleDeleteQuiz(quiz, topic.id)} className="text-vital text-xs hover:underline">Delete</button>
+                            </div>
+                          ))}
+                          {(quizzesByTopic[topic.id] || []).length === 0 && (
+                            <p className="text-slate text-xs">No quizzes yet.</p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -168,4 +217,4 @@ export default function AdminManage() {
       </div>
     </div>
   )
-}
+                                                               }
