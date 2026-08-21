@@ -1,187 +1,236 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useParams } from 'react'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
-import {
-  getSubjects, getTopicsBySubject, createLesson,
-  getLessonById, updateLesson, uploadLessonImage
-} from '../../lib/content'
-import { slugify } from '../../lib/slugify'
+import { supabase } from '../lib/supabase'
 
 export default function AdminLessonEditor() {
-  const navigate = useNavigate()
   const { id } = useParams()
-  const isEditing = Boolean(id)
-
-  const [title, setTitle] = useState('')
-  const [subjectId, setSubjectId] = useState('')
-  const [topicId, setTopicId] = useState('')
-  const [previewHtml, setPreviewHtml] = useState('')
-  const [contentHtml, setContentHtml] = useState('')
-  const [status, setStatus] = useState('draft')
+  const navigate = useNavigate()
 
   const [subjects, setSubjects] = useState([])
   const [topics, setTopics] = useState([])
+  const [selectedSubject, setSelectedSubject] = useState('')
+  const [selectedTopic, setSelectedTopic] = useState('')
+  
+  const [title, setTitle] = useState('')
+  const [previewContent, setPreviewContent] = useState('')
+  const [fullContent, setFullContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [error, setError] = useState('')
+
+  const previewFileInputRef = useRef(null)
+  const fullFileInputRef = useRef(null)
 
   useEffect(() => {
-    async function init() {
-      try {
-        const subs = await getSubjects()
-        setSubjects(subs)
+    fetchInitialData()
+  }, [id])
 
-        if (isEditing) {
-          const lesson = await getLessonById(id)
-          setTitle(lesson.title)
-          setPreviewHtml(lesson.preview_html || '')
-          setContentHtml(lesson.content_html || '')
-          setStatus(lesson.status || 'draft')
-          setTopicId(lesson.topic_id)
-        } else if (subs.length > 0) {
-          setSubjectId(subs[0].id)
+  async function fetchInitialData() {
+    setLoading(true)
+    
+    // 1. Fetch all subjects and topics
+    const [{ data: subData }, { data: topData }] = await Promise.all([
+      supabase.from('subjects').select('*').order('name'),
+      supabase.from('topics').select('*').order('title')
+    ])
+
+    setSubjects(subData || [])
+    setTopics(topData || [])
+
+    // 2. If editing existing lesson, fetch lesson details
+    if (id) {
+      const { data: lesson, error } = await supabase
+        .from('lessons')
+        .select('*, topics(id, subject_id)')
+        .eq('id', id)
+        .single()
+
+      if (!error && lesson) {
+        setTitle(lesson.title || '')
+        setPreviewContent(lesson.preview_content || '')
+        setFullContent(lesson.content || '')
+        setSelectedTopic(lesson.topic_id || '')
+        
+        if (lesson.topics?.subject_id) {
+          setSelectedSubject(lesson.topics.subject_id)
         }
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
       }
     }
-    init()
-  }, [id, isEditing])
+    setLoading(false)
+  }
 
-  useEffect(() => {
-    if (!subjectId) return
-    getTopicsBySubject(subjectId)
-      .then(t => {
-        setTopics(t)
-        if (!isEditing && t.length > 0 && !topicId) setTopicId(t[0].id)
-      })
-      .catch(err => setError(err.message))
-  }, [subjectId, isEditing, topicId])
+  // Filter topics based on currently selected subject
+  const filteredTopics = topics.filter(t => t.subject_id === selectedSubject)
 
-  async function handleImageUpload(e) {
-    const file = e.target.files[0]
+  function handleSubjectChange(e) {
+    const subId = e.target.value
+    setSelectedSubject(subId)
+    setSelectedTopic('') // reset topic when subject changes
+  }
+
+  async function handleImageUpload(e, setContent) {
+    const file = e.target.files?.[0]
     if (!file) return
-    setUploadingImage(true)
+
     try {
-      const url = await uploadLessonImage(file, slugify(title || 'lesson-image'))
-      setContentHtml(prev => prev + `<p><img src="${url}" alt="Lesson image" /></p>`)
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random()}.${fileExt}`
+      const filePath = `lessons/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('lesson-images')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('lesson-images')
+        .getPublicUrl(filePath)
+
+      const imageUrl = data.publicUrl
+      setContent(prev => prev + `<p><img src="${imageUrl}" alt="Uploaded image" /></p>`)
     } catch (err) {
-      setError('Image upload failed: ' + err.message)
-    } finally {
-      setUploadingImage(false)
+      alert('Failed to upload image: ' + err.message)
     }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!topicId) return setError('Please select a topic.')
-    setSaving(true)
-    setError('')
-    try {
-      const payload = {
-        topic_id: topicId,
-        title,
-        slug: slugify(title),
-        preview_html: previewHtml,
-        content_html: contentHtml,
-        status
-      }
+    if (!selectedTopic) {
+      alert('Please select a topic.')
+      return
+    }
 
-      if (isEditing) {
-        await updateLesson(id, payload)
-      } else {
-        await createLesson({ ...payload, sort_order: 0 })
-      }
-      navigate('/admin/manage')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
+    setSaving(true)
+    const payload = {
+      title,
+      topic_id: selectedTopic,
+      preview_content: previewContent,
+      content: fullContent,
+      updated_at: new Date()
+    }
+
+    let error
+    if (id) {
+      ;({ error } = await supabase.from('lessons').update(payload).eq('id', id))
+    } else {
+      ;({ error } = await supabase.from('lessons').insert([payload]))
+    }
+
+    setSaving(false)
+
+    if (error) {
+      alert('Error saving lesson: ' + error.message)
+    } else {
+      navigate('/admin')
     }
   }
 
-  if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
+  if (loading) return <div className="p-6 text-center text-slate font-mono">Loading editor...</div>
 
   return (
-    <div className="max-w-3xl">
-      <span className="specimen-label mb-3 block w-fit">Admin · {isEditing ? 'Edit lesson' : 'New lesson'}</span>
-      <h1 className="font-display text-2xl font-semibold mb-6">{isEditing ? 'Edit lesson' : 'Write a lesson'}</h1>
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
+      <h1 className="text-2xl font-display font-bold text-ink">
+        {id ? 'Edit Lesson' : 'Create Lesson'}
+      </h1>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="block text-sm text-slate mb-1">Subject</span>
-            <select
-              value={subjectId}
-              onChange={e => setSubjectId(e.target.value)}
-              className="input"
-            >
-              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </label>
+      {/* Subject Dropdown */}
+      <div>
+        <label className="block text-sm font-medium text-slate mb-1">Subject</label>
+        <select
+          value={selectedSubject}
+          onChange={handleSubjectChange}
+          required
+          className="w-full p-2 border border-paperDim rounded bg-paper text-ink"
+        >
+          <option value="">-- Select Subject --</option>
+          {subjects.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
 
-          <label className="block">
-            <span className="block text-sm text-slate mb-1">Topic</span>
-            <select
-              value={topicId}
-              onChange={e => setTopicId(e.target.value)}
-              className="input"
-              required
-            >
-              {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </label>
-        </div>
+      {/* Topic Dropdown */}
+      <div>
+        <label className="block text-sm font-medium text-slate mb-1">Topic</label>
+        <select
+          value={selectedTopic}
+          onChange={e => setSelectedTopic(e.target.value)}
+          required
+          disabled={!selectedSubject}
+          className="w-full p-2 border border-paperDim rounded bg-paper text-ink disabled:opacity-50"
+        >
+          <option value="">-- Select Topic --</option>
+          {filteredTopics.map(t => (
+            <option key={t.id} value={t.id}>{t.title}</option>
+          ))}
+        </select>
+      </div>
 
-        <label className="block">
-          <span className="block text-sm text-slate mb-1">Lesson Title</span>
-          <input
-            required
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            className="input"
-            placeholder="e.g. Brachial Plexus"
-          />
-        </label>
+      {/* Lesson Title */}
+      <div>
+        <label className="block text-sm font-medium text-slate mb-1">Lesson Title</label>
+        <input
+          type="text"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          required
+          className="w-full p-2 border border-paperDim rounded bg-paper text-ink"
+        />
+      </div>
 
-        <div>
-          <span className="block text-sm text-slate mb-1">Free Preview Content</span>
-          <ReactQuill theme="snow" value={previewHtml} onChange={setPreviewHtml} />
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="block text-sm text-slate">Full Notes (Paywalled)</span>
-            <label className="text-xs text-venous cursor-pointer hover:underline">
-              {uploadingImage ? 'Uploading image…' : '+ Embed image'}
-              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
-            </label>
-          </div>
-          <ReactQuill theme="snow" value={contentHtml} onChange={setContentHtml} />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <label className="block">
-            <span className="block text-sm text-slate mb-1">Status</span>
-            <select value={status} onChange={e => setStatus(e.target.value)} className="input w-32">
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-            </select>
-          </label>
-        </div>
-
-        {error && <p className="text-vital text-sm">{error}</p>}
-
-        <div className="flex items-center gap-3">
-          <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Publish / Save'}
+      {/* Free Preview Content */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-slate">Free Preview Content</label>
+          <button
+            type="button"
+            onClick={() => previewFileInputRef.current?.click()}
+            className="text-xs text-venous hover:underline font-medium"
+          >
+            + Embed image
           </button>
+          <input
+            type="file"
+            ref={previewFileInputRef}
+            onChange={e => handleImageUpload(e, setPreviewContent)}
+            accept="image/*"
+            className="hidden"
+          />
         </div>
-      </form>
-    </div>
+        <ReactQuill theme="snow" value={previewContent} onChange={setPreviewContent} />
+      </div>
+
+      {/* Full Notes Content */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-slate">Full Notes (Paywalled)</label>
+          <button
+            type="button"
+            onClick={() => fullFileInputRef.current?.click()}
+            className="text-xs text-venous hover:underline font-medium"
+          >
+            + Embed image
+          </button>
+          <input
+            type="file"
+            ref={fullFileInputRef}
+            onChange={e => handleImageUpload(e, setFullContent)}
+            accept="image/*"
+            className="hidden"
+          />
+        </div>
+        <ReactQuill theme="snow" value={fullContent} onChange={setFullContent} />
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="w-full py-3 bg-venous text-white rounded font-medium hover:bg-venousDark transition disabled:opacity-50"
+      >
+        {saving ? 'Saving...' : 'Publish Lesson'}
+      </button>
+    </form>
   )
-  }
+          }
