@@ -556,7 +556,18 @@ export default function QuizView() {
           timeLeft < 60 ? 'bg-vital/15 text-vital animate-pulse border border-vital/30' : 'bg-paper text-ink border border-paperDim'
         }`}>
           ⏱ {formatTime(timeLeft)}
-     </div>
+    </div>
+      </div>
+
+      {/* Slim Progress Bar */}
+      <div className="w-full h-1.5 rounded-full bg-paperDim overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${(answeredCount / questions.length) * 100}%`,
+            backgroundColor: '#3F8F6D'
+          }}
+        />
       </div>
 
       {/* Slide-out / Collapsible Navigation Grid */}
@@ -651,4 +662,4 @@ export default function QuizView() {
       )}
     </div>
   )
-          }
+            } 
