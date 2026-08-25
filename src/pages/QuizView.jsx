@@ -203,49 +203,91 @@ export default function QuizView() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
-    // Deep Ink Background
-    ctx.fillStyle = '#1B2A4A'
+    ctx.save()
+    ctx.globalAlpha = 1.0
+
+    // 1. Base Canvas Background (Deep Midnight Ink)
+    ctx.fillStyle = '#0F172A'
     ctx.fillRect(0, 0, 600, 600)
 
-    // Vital Crimson Accent Top Bar
-    ctx.fillStyle = '#C1442D'
-    ctx.fillRect(40, 40, 520, 8)
+    // 2. Translucent Delta Watermark Background Logo
+    ctx.save()
+    ctx.globalAlpha = 0.07
+    const watermarkGrad = ctx.createLinearGradient(150, 100, 450, 500)
+    watermarkGrad.addColorStop(0, '#38BDF8')
+    watermarkGrad.addColorStop(1, '#C1442D')
+    ctx.fillStyle = watermarkGrad
 
-    // Deltoid Header Title
-    ctx.fillStyle = '#EEF2F1'
-    ctx.font = 'bold 30px "Source Serif 4", serif'
-    ctx.fillText('DELTOID', 40, 92)
-
-    // Topic Title Subtitle
-    ctx.fillStyle = '#8A93A0'
-    ctx.font = '16px "Inter", sans-serif'
-    ctx.fillText(quiz?.title || 'Medical Topic Quiz', 40, 122)
-
-    // Inner Result Box Frame (Venous Dark Tone)
-    ctx.fillStyle = '#2C5254'
     ctx.beginPath()
-    ctx.roundRect(40, 155, 520, 280, 12)
+    ctx.moveTo(300, 120) // Top vertex
+    ctx.lineTo(510, 480) // Bottom right
+    ctx.lineTo(90, 480)  // Bottom left
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+
+    // 3. Electric Gradient Accent Bar (Top)
+    const topBarGrad = ctx.createLinearGradient(40, 0, 560, 0)
+    topBarGrad.addColorStop(0, '#10B981') // Emerald
+    topBarGrad.addColorStop(0.5, '#38BDF8') // Cyan
+    topBarGrad.addColorStop(1, '#C1442D') // Vital Crimson
+    ctx.fillStyle = topBarGrad
+    ctx.fillRect(40, 36, 520, 8)
+
+    // 4. Header: Opaque Delta Emblem + Brand Text
+    ctx.save()
+    const iconGrad = ctx.createLinearGradient(40, 72, 64, 98)
+    iconGrad.addColorStop(0, '#38BDF8')
+    iconGrad.addColorStop(1, '#10B981')
+    ctx.fillStyle = iconGrad
+    ctx.beginPath()
+    ctx.moveTo(52, 72)
+    ctx.lineTo(66, 96)
+    ctx.lineTo(38, 96)
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+
+    ctx.fillStyle = '#F8FAFC'
+    ctx.font = 'bold 26px sans-serif'
+    ctx.fillText('DELTOID', 74, 94)
+
+    ctx.fillStyle = '#94A3B8'
+    ctx.font = '16px sans-serif'
+    ctx.fillText(quiz?.title || 'Medical Topic Quiz', 40, 130)
+
+    // 5. High-Contrast Inner Container Box
+    ctx.fillStyle = '#1E293B'
+    ctx.beginPath()
+    ctx.roundRect(40, 160, 520, 270, 16)
     ctx.fill()
 
-    // Top Percentile Rank Text
-    ctx.fillStyle = '#EEF2F1'
-    ctx.font = 'bold 56px "Source Serif 4", serif'
-    ctx.fillText(rankBadge.text, 70, 245)
+    ctx.strokeStyle = '#334155'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    // 6. POP Rank Text (Electric Cyan)
+    ctx.fillStyle = '#38BDF8'
+    ctx.font = 'bold 60px sans-serif'
+    ctx.fillText(rankBadge.text, 70, 248)
 
     // Rank Description
-    ctx.fillStyle = '#E2E8E6'
-    ctx.font = '18px "Inter", sans-serif'
-    ctx.fillText(rankBadge.desc, 70, 295)
+    ctx.fillStyle = '#F1F5F9'
+    ctx.font = '18px sans-serif'
+    ctx.fillText(rankBadge.desc, 70, 296)
 
-    // Score Accent Text
-    ctx.fillStyle = '#C99A3C'
-    ctx.font = 'bold 20px "IBM Plex Mono", monospace'
-    ctx.fillText(`Score: ${score} / ${questions.length} (${Math.round((score / questions.length) * 100)}%)`, 70, 360)
+    // Score Accent Text (Vibrant Emerald)
+    const scorePct = Math.round((score / questions.length) * 100)
+    ctx.fillStyle = '#34D399'
+    ctx.font = 'bold 22px monospace'
+    ctx.fillText(`Score: ${score} / ${questions.length} (${scorePct}%)`, 70, 358)
 
-    // Footer Tagline Text
-    ctx.fillStyle = '#8A93A0'
-    ctx.font = '14px "IBM Plex Mono", monospace'
-    ctx.fillText('deltoid.app • Active Recall & Practice', 40, 520)
+    // 7. Footer Meta Line
+    ctx.fillStyle = '#64748B'
+    ctx.font = '14px monospace'
+    ctx.fillText('deltoid.app • Active Recall & Medical Practice', 40, 515)
+
+    ctx.restore()
 
     canvas.toBlob(blob => {
       if (!blob) return
@@ -368,21 +410,21 @@ export default function QuizView() {
           <h1 className="text-2xl sm:text-3xl font-display font-bold">{quiz?.title} Results</h1>
           
           <div className="flex justify-center items-center gap-4 sm:gap-6 my-4">
-            <div className="bg-ink/60 border border-paperDim/20 p-4 rounded-card min-w-[120px]">
-              <p className="text-[10px] text-slate-light font-mono uppercase tracking-wider">YOUR SCORE</p>
-              <p className="text-2xl sm:text-3xl font-bold text-gold font-mono mt-1">{score} / {questions.length}</p>
+            <div className="bg-slate-800/80 border border-slate-700/60 p-4 rounded-card min-w-[120px]">
+              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">YOUR SCORE</p>
+              <p className="text-2xl sm:text-3xl font-bold text-emerald-400 font-mono mt-1">{score} / {questions.length}</p>
             </div>
-            <div className="bg-ink/60 border border-paperDim/20 p-4 rounded-card min-w-[120px]">
-              <p className="text-[10px] text-slate-light font-mono uppercase tracking-wider">RANK TIER</p>
-              <p className="text-2xl sm:text-3xl font-bold text-venous font-display mt-1">{rankBadge.text}</p>
+            <div className="bg-slate-800/80 border border-slate-700/60 p-4 rounded-card min-w-[120px]">
+              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">RANK TIER</p>
+              <p className="text-2xl sm:text-3xl font-bold text-sky-400 font-display mt-1">{rankBadge.text}</p>
             </div>
           </div>
 
-          <p className="text-sm text-paperDim">{rankBadge.desc}</p>
+          <p className="text-sm text-slate-300">{rankBadge.desc}</p>
 
           <button
             onClick={handleShareCard}
-            className="px-6 py-2.5 bg-vital hover:bg-vitalDark text-white font-medium rounded-card text-sm transition flex items-center justify-center gap-2 mx-auto shadow-sm"
+            className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-card text-sm transition flex items-center justify-center gap-2 mx-auto shadow-md"
           >
             <span>📲 Share Result Card</span>
           </button>
@@ -531,7 +573,7 @@ export default function QuizView() {
                     {opt}
                   </button>
                 )
-             })}
+              })}
             </div>
           </div>
 
@@ -566,4 +608,4 @@ export default function QuizView() {
       )}
     </div>
   )
-}
+                                                                                                                            }
