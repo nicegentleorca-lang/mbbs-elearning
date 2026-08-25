@@ -50,7 +50,14 @@ export default function Quizzes() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center font-mono text-slate">Loading quizzes...</div>
+  if (loading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center gap-3">
+        <div className="w-6 h-6 border-2 border-venous border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate font-mono text-xs tracking-wider uppercase">Loading Quizzes…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
@@ -60,7 +67,7 @@ export default function Quizzes() {
       </div>
 
       {quizzes.length === 0 ? (
-        <div className="p-8 border border-paperDim rounded-card text-center text-slate">
+        <div className="p-8 border border-paperDim rounded-card text-center text-slate bg-white shadow-sm">
           No quizzes published yet. Check back soon!
         </div>
       ) : (
@@ -71,14 +78,14 @@ export default function Quizzes() {
             const topicName = quiz.topics?.name || 'Topic'
 
             return (
-              <div key={quiz.id} className="index-card p-5 flex flex-col justify-between space-y-4">
+              <div key={quiz.id} className="index-card p-5 flex flex-col justify-between space-y-4 bg-white border border-paperDim rounded-card shadow-sm hover:border-venous/40 transition">
                 <div>
                   <div className="flex items-center justify-between text-xs font-mono text-slate mb-2">
                     <span className="uppercase text-venous font-bold">{subjectName}</span>
-                    <span>⏱ {quiz.time_limit_minutes} Mins</span>
+                    <span className="font-medium">⏱ {quiz.time_limit_minutes} Mins</span>
                   </div>
-                  <h2 className="font-display text-lg font-semibold text-ink">{quiz.title}</h2>
-                  <p className="text-xs text-slate mt-1">{topicName}</p>
+                  <h2 className="font-display text-lg font-semibold text-ink leading-snug">{quiz.title}</h2>
+                  <p className="text-xs text-slate mt-1 font-medium">{topicName}</p>
                 </div>
 
                 <div>
@@ -87,7 +94,7 @@ export default function Quizzes() {
                       <span className="text-xs font-mono text-emerald-700 font-bold">Completed</span>
                       <Link
                         to={`/quiz/${quiz.id}`}
-                        className="text-xs font-bold text-venous hover:underline"
+                        className="text-xs font-bold font-mono text-venous hover:underline"
                       >
                         Review ({attempt.score}/{attempt.total_questions}) →
                       </Link>
@@ -95,7 +102,7 @@ export default function Quizzes() {
                   ) : (
                     <Link
                       to={`/quiz/${quiz.id}`}
-                      className="btn-primary block text-center text-sm py-2"
+                      className="btn-primary block text-center text-sm py-2 tracking-wide"
                     >
                       Start Quiz
                     </Link>
