@@ -203,52 +203,62 @@ export default function QuizView() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
-    ctx.fillStyle = '#0F172A'
+    // Deep Ink Background
+    ctx.fillStyle = '#1B2A4A'
     ctx.fillRect(0, 0, 600, 600)
-    ctx.fillStyle = '#22C55E'
-    ctx.fillRect(40, 40, 520, 12)
 
-    ctx.fillStyle = '#F8FAFC'
-    ctx.font = 'bold 28px sans-serif'
-    ctx.fillText('PRECLINICAL NOTES', 40, 90)
+    // Vital Crimson Accent Top Bar
+    ctx.fillStyle = '#C1442D'
+    ctx.fillRect(40, 40, 520, 8)
 
-    ctx.fillStyle = '#94A3B8'
-    ctx.font = '18px sans-serif'
-    ctx.fillText(quiz?.title || 'Topic Quiz', 40, 125)
+    // Deltoid Header Title
+    ctx.fillStyle = '#EEF2F1'
+    ctx.font = 'bold 30px "Source Serif 4", serif'
+    ctx.fillText('DELTOID', 40, 92)
 
-    ctx.fillStyle = '#1E293B'
+    // Topic Title Subtitle
+    ctx.fillStyle = '#8A93A0'
+    ctx.font = '16px "Inter", sans-serif'
+    ctx.fillText(quiz?.title || 'Medical Topic Quiz', 40, 122)
+
+    // Inner Result Box Frame (Venous Dark Tone)
+    ctx.fillStyle = '#2C5254'
     ctx.beginPath()
-    ctx.roundRect(40, 160, 520, 280, 16)
+    ctx.roundRect(40, 155, 520, 280, 12)
     ctx.fill()
 
-    ctx.fillStyle = '#38BDF8'
-    ctx.font = 'bold 64px sans-serif'
-    ctx.fillText(rankBadge.text, 70, 250)
+    // Top Percentile Rank Text
+    ctx.fillStyle = '#EEF2F1'
+    ctx.font = 'bold 56px "Source Serif 4", serif'
+    ctx.fillText(rankBadge.text, 70, 245)
 
-    ctx.fillStyle = '#F8FAFC'
-    ctx.font = '20px sans-serif'
-    ctx.fillText(rankBadge.desc, 70, 300)
+    // Rank Description
+    ctx.fillStyle = '#E2E8E6'
+    ctx.font = '18px "Inter", sans-serif'
+    ctx.fillText(rankBadge.desc, 70, 295)
 
-    ctx.fillStyle = '#94A3B8'
-    ctx.font = '20px sans-serif'
+    // Score Accent Text
+    ctx.fillStyle = '#C99A3C'
+    ctx.font = 'bold 20px "IBM Plex Mono", monospace'
     ctx.fillText(`Score: ${score} / ${questions.length} (${Math.round((score / questions.length) * 100)}%)`, 70, 360)
 
-    ctx.fillStyle = '#64748B'
-    ctx.font = '16px monospace'
-    ctx.fillText('preclinicalnotes.app • Active Recall Practice', 40, 520)
+    // Footer Tagline Text
+    ctx.fillStyle = '#8A93A0'
+    ctx.font = '14px "IBM Plex Mono", monospace'
+    ctx.fillText('deltoid.app • Active Recall & Practice', 40, 520)
 
     canvas.toBlob(blob => {
       if (!blob) return
-      const file = new File([blob], 'quiz-rank-card.png', { type: 'image/png' })
+      const file = new File([blob], 'deltoid-quiz-rank.png', { type: 'image/png' })
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({
           files: [file],
-          title: 'My Quiz Score',
-          text: `I scored ${score}/${questions.length} on ${quiz?.title}!`
+          title: 'My Deltoid Quiz Score',
+          text: `I scored ${score}/${questions.length} on ${quiz?.title} on Deltoid!`
         }).catch(() => {})
       } else {
         const link = document.createElement('a')
-        link.download = `quiz-rank-${quizId}.png`
+        link.download = `deltoid-rank-${quizId}.png`
         link.href = canvas.toDataURL()
         link.click()
       }
@@ -261,16 +271,23 @@ export default function QuizView() {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`
   }
 
-  if (loading) return <div className="p-8 text-center font-mono text-slate">Loading practice session...</div>
+  if (loading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center gap-3">
+        <div className="w-6 h-6 border-2 border-venous border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate font-mono text-xs tracking-wider">LOADING PRACTICE SESSION…</p>
+      </div>
+    )
+  }
 
   // Daily 300 Questions Soft Cap Screen
   if (dailyLimitReached && !quizStarted && !submitted) {
     return (
-      <div className="max-w-xl mx-auto p-6 text-center space-y-6">
-        <span className="specimen-label">Daily Goal Reached</span>
+      <div className="max-w-xl mx-auto p-8 text-center space-y-6 bg-white border border-paperDim rounded-card shadow-sm">
+        <span className="specimen-label">Daily Ceiling Reached</span>
         <h1 className="text-2xl font-display font-bold text-ink">300 Questions Complete!</h1>
-        <p className="text-slate text-sm">
-          You've hit your daily practice ceiling. Take time to digest today's learning and come back tomorrow for fresh sessions.
+        <p className="text-slate text-sm leading-relaxed">
+          You've reached your daily practice limit. Review today's topics and rest your active memory until tomorrow.
         </p>
         <Link to="/quizzes" className="btn-primary inline-block py-2.5 px-6">
           Back to Quizzes
@@ -282,41 +299,41 @@ export default function QuizView() {
   // Quiz Intro Screen (With Retake vs. Review Support)
   if (!quizStarted && !submitted) {
     return (
-      <div className="max-w-2xl mx-auto p-6 text-center space-y-6">
-        <span className="specimen-label">Timed Topic Quiz</span>
+      <div className="max-w-2xl mx-auto p-6 text-center space-y-6 bg-white border border-paperDim rounded-card shadow-sm">
+        <span className="specimen-label">Timed Practice Session</span>
         <h1 className="text-3xl font-display font-bold text-ink">{quiz?.title}</h1>
-        <p className="text-slate text-sm">{quiz?.description}</p>
+        {quiz?.description && <p className="text-slate text-sm leading-relaxed">{quiz?.description}</p>}
 
         <div className="bg-paper p-4 rounded-card border border-paperDim flex justify-around text-center">
           <div>
-            <p className="text-xs text-slate font-mono uppercase">Questions</p>
-            <p className="text-xl font-bold text-ink">{questions.length}</p>
+            <p className="text-[11px] text-slate font-mono uppercase tracking-wider">Questions</p>
+            <p className="text-xl font-bold text-ink font-mono mt-0.5">{questions.length}</p>
           </div>
           <div>
-            <p className="text-xs text-slate font-mono uppercase">Time Allowed</p>
-            <p className="text-xl font-bold text-ink">{quiz?.time_limit_minutes} Mins</p>
+            <p className="text-[11px] text-slate font-mono uppercase tracking-wider">Time Limit</p>
+            <p className="text-xl font-bold text-ink font-mono mt-0.5">{quiz?.time_limit_minutes} Mins</p>
           </div>
           <div>
-            <p className="text-xs text-slate font-mono uppercase">Mode</p>
-            <p className="text-xl font-bold text-venous">Paginated</p>
+            <p className="text-[11px] text-slate font-mono uppercase tracking-wider">Format</p>
+            <p className="text-xl font-bold text-venous font-mono mt-0.5">Paginated</p>
           </div>
         </div>
 
         {pastAttempt ? (
-          <div className="space-y-4 bg-emerald-50/60 p-4 rounded-card border border-emerald-200">
-            <p className="text-xs font-mono text-emerald-800 font-bold uppercase">
-              Previous Attempt: {pastAttempt.score} / {questions.length} ({pastAttempt.percentage}%)
+          <div className="space-y-4 bg-venous/10 p-5 rounded-card border border-venous/30">
+            <p className="text-xs font-mono text-venousDark font-bold uppercase tracking-wider">
+              Previous Score: {pastAttempt.score} / {questions.length} ({pastAttempt.percentage}%)
             </p>
-            <div className="flex gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={handleStartFresh}
-                className="py-2.5 px-6 bg-venous text-white rounded-card font-medium hover:bg-venousDark transition shadow-sm text-sm"
+                className="btn-primary py-2.5 px-6 text-sm"
               >
                 🔄 Retake Quiz
               </button>
               <button
                 onClick={() => setSubmitted(true)}
-                className="py-2.5 px-6 bg-white border border-paperDim text-ink rounded-card font-medium hover:bg-paper transition shadow-sm text-sm"
+                className="btn-secondary py-2.5 px-6 text-sm"
               >
                 📖 Review Answers
               </button>
@@ -325,7 +342,7 @@ export default function QuizView() {
         ) : (
           <button
             onClick={handleStartFresh}
-            className="w-full py-3 bg-venous text-white rounded-card font-medium hover:bg-venousDark transition shadow-md"
+            className="w-full btn-primary py-3 text-sm tracking-wide"
           >
             Begin Practice Session
           </button>
@@ -337,44 +354,44 @@ export default function QuizView() {
   // Review Screen (All Questions Displayed for Active Recall Review)
   if (submitted) {
     return (
-      <div className="max-w-3xl mx-auto p-4 space-y-6">
-        <div className="bg-slate-900 text-white p-6 rounded-card text-center space-y-4 shadow-lg">
+      <div className="max-w-3xl mx-auto p-2 space-y-6">
+        <div className="bg-ink text-paper p-6 sm:p-8 rounded-card text-center space-y-5 shadow-lg">
           <div className="flex justify-center gap-2">
             <button
               onClick={handleStartFresh}
-              className="bg-emerald-500/20 text-emerald-300 text-xs font-mono px-3 py-1 rounded-full border border-emerald-500/30 hover:bg-emerald-500/30 transition"
+              className="bg-paper/10 text-paper text-xs font-mono px-3.5 py-1.5 rounded-full border border-paper/20 hover:bg-paper/20 transition"
             >
-              🔄 Retake This Quiz
+              🔄 Retake Quiz
             </button>
           </div>
 
-          <h1 className="text-2xl font-display font-bold">{quiz?.title} Results</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold">{quiz?.title} Results</h1>
           
-          <div className="flex justify-center items-center gap-6 my-4">
-            <div className="bg-slate-800 p-4 rounded-lg">
-              <p className="text-xs text-slate-400 font-mono">YOUR SCORE</p>
-              <p className="text-3xl font-bold text-emerald-400">{score} / {questions.length}</p>
+          <div className="flex justify-center items-center gap-4 sm:gap-6 my-4">
+            <div className="bg-ink/60 border border-paperDim/20 p-4 rounded-card min-w-[120px]">
+              <p className="text-[10px] text-slate-light font-mono uppercase tracking-wider">YOUR SCORE</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gold font-mono mt-1">{score} / {questions.length}</p>
             </div>
-            <div className="bg-slate-800 p-4 rounded-lg">
-              <p className="text-xs text-slate-400 font-mono">RANK TIER</p>
-              <p className="text-3xl font-bold text-sky-400">{rankBadge.text}</p>
+            <div className="bg-ink/60 border border-paperDim/20 p-4 rounded-card min-w-[120px]">
+              <p className="text-[10px] text-slate-light font-mono uppercase tracking-wider">RANK TIER</p>
+              <p className="text-2xl sm:text-3xl font-bold text-venous font-display mt-1">{rankBadge.text}</p>
             </div>
           </div>
 
-          <p className="text-sm text-slate-300">{rankBadge.desc}</p>
+          <p className="text-sm text-paperDim">{rankBadge.desc}</p>
 
           <button
             onClick={handleShareCard}
-            className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-full text-sm transition flex items-center justify-center gap-2 mx-auto"
+            className="px-6 py-2.5 bg-vital hover:bg-vitalDark text-white font-medium rounded-card text-sm transition flex items-center justify-center gap-2 mx-auto shadow-sm"
           >
-            <span>📲 Share Stats Card</span>
+            <span>📲 Share Result Card</span>
           </button>
         </div>
 
         <canvas ref={canvasRef} width="600" height="600" className="hidden" />
 
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold text-ink">Answer Review & Explanations</h2>
+        <div className="space-y-5">
+          <h2 className="text-xl font-display font-bold text-ink">Answer Review & Explanations</h2>
           {questions.map((q, idx) => {
             const userChoice = userAnswers[q.id]
             const hasChosen = userChoice !== undefined
@@ -385,22 +402,22 @@ export default function QuizView() {
                 key={q.id}
                 className={`p-5 rounded-card border ${
                   hasChosen
-                    ? isCorrect ? 'bg-emerald-50/50 border-emerald-200' : 'bg-red-50/50 border-red-200'
+                    ? isCorrect ? 'bg-venous/5 border-venous/30' : 'bg-vital/5 border-vital/30'
                     : 'bg-white border-paperDim'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <span className="font-mono text-xs font-bold text-slate">Question #{idx + 1}</span>
                   {hasChosen && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                      isCorrect ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
+                    <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded ${
+                      isCorrect ? 'bg-venous/20 text-venousDark' : 'bg-vital/20 text-vitalDark'
                     }`}>
                       {isCorrect ? 'Correct' : 'Incorrect'}
                     </span>
                   )}
                 </div>
 
-                <p className="font-medium text-ink mb-4 whitespace-pre-line">{q.prompt}</p>
+                <p className="font-medium text-ink mb-4 whitespace-pre-line text-sm sm:text-base leading-relaxed">{q.prompt}</p>
 
                 <div className="space-y-2 mb-4">
                   {q.options.map((opt, oIdx) => {
@@ -408,11 +425,11 @@ export default function QuizView() {
                     const isCorrectOpt = q.correct_answer === opt
 
                     let style = "border-paperDim bg-white text-ink"
-                    if (isCorrectOpt) style = "border-emerald-500 bg-emerald-100/80 font-semibold text-emerald-900"
-                    else if (isSelected && !isCorrect) style = "border-red-500 bg-red-100/80 text-red-900"
+                    if (isCorrectOpt) style = "border-venous bg-venous/15 font-semibold text-ink"
+                    else if (isSelected && !isCorrect) style = "border-vital bg-vital/15 text-vitalDark"
 
                     return (
-                      <div key={oIdx} className={`p-2.5 rounded text-xs md:text-sm border ${style}`}>
+                      <div key={oIdx} className={`p-3 rounded-card text-xs sm:text-sm border ${style}`}>
                         {opt}
                       </div>
                     )
@@ -420,8 +437,8 @@ export default function QuizView() {
                 </div>
 
                 {q.explanation && (
-                  <div className="bg-white p-3 rounded border border-paperDim text-xs text-slate">
-                    <strong className="text-ink">Explanation: </strong> {q.explanation}
+                  <div className="bg-white p-3.5 rounded-card border border-paperDim text-xs text-slate leading-relaxed">
+                    <strong className="text-ink font-semibold">Explanation: </strong> {q.explanation}
                   </div>
                 )}
               </div>
@@ -437,9 +454,9 @@ export default function QuizView() {
   const answeredCount = Object.keys(userAnswers).length
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-6 relative">
+    <div className="max-w-2xl mx-auto p-2 space-y-6 relative">
       {/* Top Header Bar */}
-      <div className="bg-white/95 backdrop-blur border border-paperDim p-4 rounded-card flex items-center justify-between shadow-sm">
+      <div className="bg-white border border-paperDim p-4 rounded-card flex items-center justify-between shadow-sm">
         <div>
           <button
             onClick={() => setShowGrid(!showGrid)}
@@ -447,11 +464,11 @@ export default function QuizView() {
           >
             📊 Grid ({answeredCount}/{questions.length})
           </button>
-          <p className="text-xs text-slate font-medium">Question {currentIndex + 1} of {questions.length}</p>
+          <p className="text-xs text-slate font-medium mt-0.5">Question {currentIndex + 1} of {questions.length}</p>
         </div>
 
-        <div className={`font-mono font-bold text-sm px-3 py-1 rounded ${
-          timeLeft < 60 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-paper text-ink'
+        <div className={`font-mono font-bold text-sm px-3.5 py-1.5 rounded-card ${
+          timeLeft < 60 ? 'bg-vital/15 text-vital animate-pulse border border-vital/30' : 'bg-paper text-ink border border-paperDim'
         }`}>
           ⏱ {formatTime(timeLeft)}
         </div>
@@ -462,16 +479,16 @@ export default function QuizView() {
         <div className="bg-white border border-paperDim p-4 rounded-card space-y-3 shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-slate uppercase">Question Navigator</span>
-            <button onClick={() => setShowGrid(false)} className="text-xs text-slate hover:text-ink">Close ✕</button>
+            <button onClick={() => setShowGrid(false)} className="text-xs text-slate hover:text-ink font-mono">Close ✕</button>
           </div>
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
             {questions.map((q, idx) => {
               const isAnswered = userAnswers[q.id] !== undefined
               const isCurrent = idx === currentIndex
 
-              let btnStyle = "bg-paper text-slate border-paperDim"
-              if (isAnswered) btnStyle = "bg-venous/20 text-venous border-venous/40 font-bold"
-              if (isCurrent) btnStyle += " ring-2 ring-venous border-venous"
+              let btnStyle = "bg-paper text-slate border-paperDim hover:border-venous"
+              if (isAnswered) btnStyle = "bg-venous/20 text-venousDark border-venous/40 font-bold"
+              if (isCurrent) btnStyle += " ring-2 ring-vital border-vital"
 
               return (
                 <button
@@ -480,7 +497,7 @@ export default function QuizView() {
                     setCurrentIndex(idx)
                     setShowGrid(false)
                   }}
-                  className={`p-2 rounded text-xs font-mono border transition ${btnStyle}`}
+                  className={`p-2 rounded-card text-xs font-mono border transition ${btnStyle}`}
                 >
                   {idx + 1}
                 </button>
@@ -494,8 +511,8 @@ export default function QuizView() {
       {currentQ && (
         <div className="bg-white p-6 border border-paperDim rounded-card space-y-5 shadow-sm min-h-[300px] flex flex-col justify-between">
           <div className="space-y-4">
-            <span className="font-mono text-xs text-slate font-bold">Item #{currentIndex + 1}</span>
-            <p className="font-medium text-ink text-base md:text-lg whitespace-pre-line">{currentQ.prompt}</p>
+            <span className="specimen-label">Item #{currentIndex + 1}</span>
+            <p className="font-medium text-ink text-base md:text-lg whitespace-pre-line leading-relaxed">{currentQ.prompt}</p>
 
             <div className="space-y-2.5">
               {currentQ.options.map((opt, oIdx) => {
@@ -514,7 +531,7 @@ export default function QuizView() {
                     {opt}
                   </button>
                 )
-              })}
+             })}
             </div>
           </div>
 
@@ -523,7 +540,7 @@ export default function QuizView() {
             <button
               onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
               disabled={currentIndex === 0}
-              className="px-4 py-2 text-xs font-mono font-bold bg-paper text-slate rounded border border-paperDim hover:bg-paperDim disabled:opacity-30 transition"
+              className="px-4 py-2 text-xs font-mono font-bold bg-paper text-slate rounded-card border border-paperDim hover:bg-paperDim disabled:opacity-30 transition"
             >
               ← Previous
             </button>
@@ -531,7 +548,7 @@ export default function QuizView() {
             {currentIndex < questions.length - 1 ? (
               <button
                 onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                className="px-5 py-2 text-xs font-mono font-bold bg-venous text-white rounded hover:bg-venousDark transition shadow-sm"
+                className="px-5 py-2 text-xs font-mono font-bold bg-venous text-white rounded-card hover:bg-venousDark transition shadow-sm"
               >
                 Next →
               </button>
@@ -539,7 +556,7 @@ export default function QuizView() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-5 py-2 text-xs font-mono font-bold bg-emerald-600 text-white rounded hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
+                className="px-5 py-2 text-xs font-mono font-bold bg-vital text-white rounded-card hover:bg-vitalDark transition shadow-sm disabled:opacity-50"
               >
                 {submitting ? 'Submitting...' : 'Finish & Submit'}
               </button>
