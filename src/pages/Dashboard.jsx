@@ -35,37 +35,58 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [user])
 
-  if (loading) return <p className="text-slate font-mono text-sm">Loading subjects…</p>
+  if (loading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center gap-3">
+        <div className="w-6 h-6 border-2 border-venous border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate font-mono text-xs tracking-wider">LOADING CURRICULUM…</p>
+      </div>
+    )
+  }
 
   if (subjects.length === 0) {
     return (
-      <div className="text-center py-16">
-        <span className="specimen-label mb-4 block w-fit mx-auto">Nothing here yet</span>
-        <p className="text-slate">Subjects will appear here once they're added.</p>
+      <div className="text-center py-20 bg-white/50 border border-paperDim rounded-card">
+        <span className="specimen-label mb-4 inline-block">SYSTEM EMPTY</span>
+        <p className="text-slate text-sm">No subjects available right now. Check back soon!</p>
       </div>
     )
   }
 
   return (
-    <div>
-      <span className="specimen-label mb-3 block w-fit">Preclinical Years</span>
-      <h1 className="font-display text-3xl font-semibold mb-6">Subjects</h1>
+    <div className="space-y-6">
+      <header>
+        <span className="specimen-label mb-2 block w-fit">Welcome, Medic!</span>
+        <h1 className="font-display text-3xl font-bold text-ink">Subjects</h1>
+      </header>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        {subjects.map(subject => (
-          <Link key={subject.id} to={`/subjects/${subject.slug}`} className="index-card p-5 block">
-            <div className="flex items-start justify-between">
-              <h2 className="font-display text-xl font-semibold text-ink">{subject.name}</h2>
-              {purchasedIds.has(subject.id) && (
-                <span className="text-xs font-mono uppercase tracking-wide text-gold border border-gold rounded-card px-2 py-0.5">
-                  Owned
-                </span>
+        {subjects.map(subject => {
+          const isOwned = purchasedIds.has(subject.id)
+          return (
+            <Link 
+              key={subject.id} 
+              to={`/subjects/${subject.slug}`} 
+              className="index-card p-6 block group"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="font-display text-xl font-bold text-ink group-hover:text-venous transition-colors">
+                  {subject.name}
+                </h2>
+                {isOwned && (
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-gold bg-gold/10 border border-gold/30 rounded px-2 py-0.5 font-semibold shrink-0">
+                    Unlocked
+                  </span>
+                )}
+              </div>
+              {subject.description && (
+                <p className="text-slate text-sm mt-2.5 leading-relaxed">
+                  {subject.description}
+                </p>
               )}
-            </div>
-            {subject.description && (
-              <p className="text-slate text-sm mt-2">{subject.description}</p>
-            )}
-          </Link>
-        ))}
+            </Link>
+          )
+        })}
       </div>
     </div>
   )
