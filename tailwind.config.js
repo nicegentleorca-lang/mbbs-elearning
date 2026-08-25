@@ -25,7 +25,11 @@ export default {
         mono: ['"IBM Plex Mono"', 'monospace']
       },
       borderRadius: {
-        card: '2px'
+        card: '4px'
+      },
+      boxShadow: {
+        card: '0 2px 8px -2px rgba(27, 42, 74, 0.06), 0 1px 4px -1px rgba(27, 42, 74, 0.04)',
+        hover: '0 8px 20px -4px rgba(27, 42, 74, 0.12), 0 4px 8px -2px rgba(27, 42, 74, 0.06)'
       }
     }
   },
