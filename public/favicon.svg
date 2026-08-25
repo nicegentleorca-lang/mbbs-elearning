@@ -1,7 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#1B2A4A"/>
-  <!-- Stylized Delta (Δ) Deltoid mark -->
-  <polygon points="16,6 26,24 6,24" fill="#3C6E71"/>
-  <polygon points="16,11 22,22 10,22" fill="#1B2A4A"/>
-  <circle cx="16" cy="17" r="2" fill="#C1442D"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="deltoid-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B2A4A" />
+      <stop offset="100%" stop-color="#0E1726" />
+    </linearGradient>
+    <linearGradient id="deltoid-teal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#529EA3" />
+      <stop offset="100%" stop-color="#2C5254" />
+    </linearGradient>
+    <linearGradient id="deltoid-vital" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E5593F" />
+      <stop offset="100%" stop-color="#A8321C" />
+    </linearGradient>
+  </defs>
+
+  <!-- Deep Ink Rounded Container -->
+  <rect width="64" height="64" rx="14" fill="url(#deltoid-bg)" />
+
+  <!-- Outer Gradient Delta Triangle -->
+  <polygon points="32,12 52,48 12,48" fill="url(#deltoid-teal)" />
+
+  <!-- Sharp Inner Cutout -->
+  <polygon points="32,22 43,43 21,43" fill="url(#deltoid-bg)" />
+
+  <!-- Vital Crimson Core Node -->
+  <circle cx="32" cy="35" r="3.5" fill="url(#deltoid-vital)" />
 </svg>
