@@ -251,6 +251,12 @@ export default function QuizView() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
+    // Render at native device resolution so shared/downloaded PNGs stay sharp
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = 600 * dpr
+    canvas.height = 600 * dpr
+    ctx.scale(dpr, dpr)
+
     ctx.save()
     ctx.globalAlpha = 1.0
 
@@ -550,7 +556,7 @@ export default function QuizView() {
           timeLeft < 60 ? 'bg-vital/15 text-vital animate-pulse border border-vital/30' : 'bg-paper text-ink border border-paperDim'
         }`}>
           ⏱ {formatTime(timeLeft)}
-        </div>
+     </div>
       </div>
 
       {/* Slide-out / Collapsible Navigation Grid */}
@@ -645,4 +651,4 @@ export default function QuizView() {
       )}
     </div>
   )
-}
+          }
