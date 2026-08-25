@@ -7,13 +7,12 @@ html, body, #root {
 }
 
 body {
-  @apply bg-paper text-ink font-sans antialiased;
+  @apply bg-paper text-ink font-sans antialiased selection:bg-venous/20 selection:text-ink;
 }
 
-/* Signature element: a "specimen label" — used on subject/topic headers.
-   Small-caps eyebrow + hairline corner ticks, like a museum specimen card. */
+/* Signature Deltoid "Specimen Label" — Eyebrow label with clinical corner ticks */
 .specimen-label {
-  @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate;
+  @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate font-medium;
   padding: 0.35rem 0.75rem;
 }
 .specimen-label::before,
@@ -33,15 +32,15 @@ body {
   border-bottom: 1px solid; border-right: 1px solid;
 }
 
-/* Index-card style used for topic/lesson cards */
+/* Index-card style for topic, lesson, and quiz cards */
 .index-card {
-  @apply bg-white border border-paperDim rounded-card shadow-sm transition-shadow;
+  @apply bg-white border border-paperDim rounded-card shadow-card transition-all duration-200;
 }
 .index-card:hover {
-  box-shadow: 0 4px 14px rgba(27, 42, 74, 0.08);
+  @apply shadow-hover border-venous/30 -translate-y-[1px];
 }
 
-/* Blurred lock overlay for paywalled lesson content */
+/* Blurred lock overlay for paywalled content */
 .paywall-blur {
   filter: blur(5px);
   user-select: none;
@@ -49,15 +48,15 @@ body {
 }
 
 .input {
-  @apply w-full border border-paperDim bg-white rounded-card px-3 py-2 text-ink placeholder:text-slate-light focus:border-venous outline-none;
+  @apply w-full border border-paperDim bg-white rounded-card px-3.5 py-2.5 text-ink placeholder:text-slate-light focus:border-venous focus:ring-1 focus:ring-venous outline-none transition-all text-sm;
 }
 
 .btn-primary {
-  @apply bg-vital text-white font-medium px-4 py-2 rounded-card hover:bg-vitalDark transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply bg-vital text-white font-medium px-4 py-2.5 rounded-card hover:bg-vitalDark active:scale-[0.99] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm;
 }
 
 .btn-secondary {
-  @apply bg-white border border-paperDim text-ink font-medium px-4 py-2 rounded-card hover:border-venous transition-colors disabled:opacity-50;
+  @apply bg-white border border-paperDim text-ink font-medium px-4 py-2.5 rounded-card hover:border-venous hover:bg-paper/50 active:scale-[0.99] transition-all shadow-sm disabled:opacity-50 text-sm;
 }
 
 :focus-visible {
@@ -69,7 +68,7 @@ body {
   * { animation: none !important; transition: none !important; }
 }
 
-/* Original image formatting: natural sizing, max 100% container width */
+/* Formatted image rendering inside lesson and question content */
 .ql-editor img,
 .prose img,
 .lesson-content img {
@@ -78,4 +77,5 @@ body {
   display: block;
   margin: 1.5rem auto;
   border-radius: 6px;
+  border: 1px solid #E2E8E6;
 }
