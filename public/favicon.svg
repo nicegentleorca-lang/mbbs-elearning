@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="4" fill="#1B2A4A"/>
-  <text x="16" y="22" font-family="Georgia, serif" font-size="18" fill="#EEF2F1" text-anchor="middle">P</text>
+  <rect width="32" height="32" rx="6" fill="#1B2A4A"/>
+  <!-- Stylized Delta (Δ) Deltoid mark -->
+  <polygon points="16,6 26,24 6,24" fill="#3C6E71"/>
+  <polygon points="16,11 22,22 10,22" fill="#1B2A4A"/>
+  <circle cx="16" cy="17" r="2" fill="#C1442D"/>
 </svg>
