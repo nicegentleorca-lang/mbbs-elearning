@@ -1,5 +1,6 @@
-import { Link, useNavigate, Outlet } from 'react-router-dom'
+import { Link, NavLink, useNavigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import DeltoidLogo from './DeltoidLogo'
 
 export default function Layout({ children }) {
   const { user, isAdmin, signOut } = useAuth()
@@ -10,37 +11,86 @@ export default function Layout({ children }) {
     navigate('/login')
   }
 
+  // Active link style indicator
+  const navLinkClass = ({ isActive }) =>
+    `text-sm font-medium transition-colors ${
+      isActive ? 'text-ink font-semibold border-b-2 border-vital pb-0.5' : 'text-slate hover:text-ink'
+    }`
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-paperDim bg-paper/95 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="font-display text-lg font-semibold text-ink">
-            Preclinical Notes
+    <div className="min-h-screen flex flex-col bg-paper">
+      {/* Top Header / Navigation */}
+      <header className="border-b border-paperDim bg-paper/95 backdrop-blur-md sticky top-0 z-30 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+          
+          {/* Brand Emblem & Name */}
+          <Link to="/" className="group flex items-center gap-2">
+            <DeltoidLogo className="w-8 h-8 transition-transform group-hover:scale-105" showText={true} />
           </Link>
-          <nav className="flex items-center gap-4 text-sm font-sans">
+
+          {/* Navigation Items */}
+          <nav className="flex items-center gap-5 sm:gap-6">
             {user && (
-              <>
-                <Link to="/" className="text-slate hover:text-ink">Subjects</Link>
-                <Link to="/quizzes" className="text-slate hover:text-ink">Quizzes</Link>
-                <Link to="/history" className="text-slate hover:text-ink">History</Link>
-              </>
+              <div className="flex items-center gap-4 sm:gap-6">
+                <NavLink to="/" end className={navLinkClass}>
+                  Subjects
+                </NavLink>
+                <NavLink to="/quizzes" className={navLinkClass}>
+                  Quizzes
+                </NavLink>
+                <NavLink to="/history" className={navLinkClass}>
+                  History
+                </NavLink>
+              </div>
             )}
+
+            {/* Admin Badge */}
             {isAdmin && (
-              <Link to="/admin" className="text-venous hover:text-venousDark font-medium">Admin</Link>
+              <NavLink
+                to="/admin"
+                className="bg-venous/10 text-venous hover:bg-venous hover:text-white text-xs font-mono font-semibold uppercase px-2.5 py-1 rounded border border-venous/30 transition-all"
+              >
+                Admin
+              </NavLink>
             )}
+
+            {/* Auth Action */}
             {user ? (
-              <button onClick={handleSignOut} className="text-slate hover:text-vital">Sign out</button>
+              <button
+                onClick={handleSignOut}
+                className="text-sm font-medium text-slate hover:text-vital transition-colors border-l border-paperDim pl-4"
+              >
+                Sign out
+              </button>
             ) : (
-              <Link to="/login" className="text-slate hover:text-ink">Sign in</Link>
+              <Link
+                to="/login"
+                className="btn-primary text-xs"
+              >
+                Sign in
+              </Link>
             )}
           </nav>
         </div>
       </header>
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
+
+      {/* Main Page Body */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
         {children || <Outlet />}
       </main>
-      <footer className="border-t border-paperDim py-4 text-center text-xs text-slate-light font-mono">
-        Preclinical Notes — Anatomy · Biochemistry · Physiology
+
+      {/* Clinical Footer */}
+      <footer className="border-t border-paperDim bg-white/60 py-6 text-xs text-slate">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <DeltoidLogo className="w-4 h-4" />
+            <span className="font-display font-bold text-ink tracking-wider">DELTOID</span>
+            <span className="text-slate-light">• Active Recall & Medical Practice</span>
+          </div>
+          <p className="font-mono text-slate-light text-[11px]">
+            Anatomy · Biochemistry · Physiology
+          </p>
+        </div>
       </footer>
     </div>
   )
