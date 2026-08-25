@@ -198,13 +198,22 @@ export default function QuizView() {
     })
   }
 
-  // Draw Exact Vector Deltoid Logo onto Canvas Context
-  function drawDeltoidLogoVector(ctx, x, y, size, bgFillColor = '#0F172A') {
+  // Helper function to render exact favicon.svg geometry
+  function drawDeltoidLogo(ctx, x, y, size) {
     ctx.save()
     const scale = size / 64
     ctx.translate(x, y)
 
-    // Outer Gradient Delta Triangle (points="32,12 52,48 12,48")
+    // Deep Ink Rounded Container
+    const bgGrad = ctx.createLinearGradient(0, 0, 64 * scale, 64 * scale)
+    bgGrad.addColorStop(0, '#1B2A4A')
+    bgGrad.addColorStop(1, '#0E1726')
+    ctx.fillStyle = bgGrad
+    ctx.beginPath()
+    ctx.roundRect(0, 0, 64 * scale, 64 * scale, 14 * scale)
+    ctx.fill()
+
+    // Outer Gradient Delta Triangle
     const tealGrad = ctx.createLinearGradient(0, 0, 64 * scale, 64 * scale)
     tealGrad.addColorStop(0, '#529EA3')
     tealGrad.addColorStop(1, '#2C5254')
@@ -216,8 +225,8 @@ export default function QuizView() {
     ctx.closePath()
     ctx.fill()
 
-    // Sharp Inner Cutout (points="32,22 43,43 21,43")
-    ctx.fillStyle = bgFillColor
+    // Sharp Inner Cutout
+    ctx.fillStyle = bgGrad
     ctx.beginPath()
     ctx.moveTo(32 * scale, 22 * scale)
     ctx.lineTo(43 * scale, 43 * scale)
@@ -225,13 +234,8 @@ export default function QuizView() {
     ctx.closePath()
     ctx.fill()
 
-    // Vital Crimson Core Node (cx="32" cy="35" r="3.5")
-    const vitalGrad = ctx.createLinearGradient(
-      28.5 * scale,
-      31.5 * scale,
-      35.5 * scale,
-      38.5 * scale
-    )
+    // Vital Crimson Core Node
+    const vitalGrad = ctx.createLinearGradient(28.5 * scale, 31.5 * scale, 35.5 * scale, 38.5 * scale)
     vitalGrad.addColorStop(0, '#E5593F')
     vitalGrad.addColorStop(1, '#A8321C')
     ctx.fillStyle = vitalGrad
@@ -254,30 +258,40 @@ export default function QuizView() {
     ctx.fillStyle = '#0F172A'
     ctx.fillRect(0, 0, 600, 600)
 
-    // 2. Watermark Logo (Translucent Large Deltoid Mark in Background)
+    // 2. Translucent Delta Watermark Background Logo (RESTORED EXACT ORIGINAL)
     ctx.save()
-    ctx.globalAlpha = 0.08
-    drawDeltoidLogoVector(ctx, 100, 100, 400, '#0F172A')
+    ctx.globalAlpha = 0.07
+    const watermarkGrad = ctx.createLinearGradient(150, 100, 450, 500)
+    watermarkGrad.addColorStop(0, '#38BDF8')
+    watermarkGrad.addColorStop(1, '#C1442D')
+    ctx.fillStyle = watermarkGrad
+
+    ctx.beginPath()
+    ctx.moveTo(300, 120) // Top vertex
+    ctx.lineTo(510, 480) // Bottom right
+    ctx.lineTo(90, 480)  // Bottom left
+    ctx.closePath()
+    ctx.fill()
     ctx.restore()
 
-    // 3. Electric Gradient Accent Bar (Top)
+    // 3. Electric Gradient Accent Bar (Top) (RESTORED EXACT ORIGINAL)
     const topBarGrad = ctx.createLinearGradient(40, 0, 560, 0)
-    topBarGrad.addColorStop(0, '#529EA3')
-    topBarGrad.addColorStop(0.5, '#38BDF8')
-    topBarGrad.addColorStop(1, '#E5593F')
+    topBarGrad.addColorStop(0, '#10B981') // Emerald
+    topBarGrad.addColorStop(0.5, '#38BDF8') // Cyan
+    topBarGrad.addColorStop(1, '#C1442D') // Vital Crimson
     ctx.fillStyle = topBarGrad
-    ctx.fillRect(40, 36, 520, 6)
+    ctx.fillRect(40, 36, 520, 8)
 
-    // 4. Header: Exact Deltoid Logo Emblem + Brand Text
-    drawDeltoidLogoVector(ctx, 40, 62, 38, '#0F172A')
+    // 4. Header: Official Deltoid Favicon Logo + Brand Text
+    drawDeltoidLogo(ctx, 40, 64, 34)
 
     ctx.fillStyle = '#F8FAFC'
     ctx.font = 'bold 26px sans-serif'
-    ctx.fillText('DELTOID', 86, 90)
+    ctx.fillText('DELTOID', 84, 90)
 
     ctx.fillStyle = '#94A3B8'
     ctx.font = '16px sans-serif'
-    ctx.fillText(quiz?.title || 'Medical Topic Quiz', 40, 132)
+    ctx.fillText(quiz?.title || 'Medical Topic Quiz', 40, 130)
 
     // 5. High-Contrast Inner Container Box
     ctx.fillStyle = '#1E293B'
@@ -542,7 +556,7 @@ export default function QuizView() {
       {/* Slide-out / Collapsible Navigation Grid */}
       {showGrid && (
         <div className="bg-white border border-paperDim p-4 rounded-card space-y-3 shadow-md">
-          <div className="flex items-center justify-between">
+           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-slate uppercase">Question Navigator</span>
             <button onClick={() => setShowGrid(false)} className="text-xs text-slate hover:text-ink font-mono">Close ✕</button>
           </div>
@@ -551,7 +565,7 @@ export default function QuizView() {
               const isAnswered = userAnswers[q.id] !== undefined
               const isCurrent = idx === currentIndex
 
-                  let btnStyle = "bg-paper text-slate border-paperDim hover:border-venous"
+              let btnStyle = "bg-paper text-slate border-paperDim hover:border-venous"
               if (isAnswered) btnStyle = "bg-venous/20 text-venousDark border-venous/40 font-bold"
               if (isCurrent) btnStyle += " ring-2 ring-vital border-vital"
 
