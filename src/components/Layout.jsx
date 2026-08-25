@@ -88,7 +88,7 @@ export default function Layout({ children }) {
             <span className="text-slate-light">• Active Recall & Medical Practice</span>
           </div>
           <p className="font-mono text-slate-light text-[11px]">
-            Anatomy · Biochemistry · Physiology
+            High-Yield Preclinical & Clinical Practice
           </p>
         </div>
       </footer>
