@@ -181,7 +181,7 @@ export default function QuizView() {
 
     if (!allAttempts || allAttempts.length < 5) {
       if (pct >= 90) setRankBadge({ text: 'Top 5%', desc: 'Outstanding performance!' })
-      else if (pct >= 66) setRankBadge({ text: 'Top 20%', desc: 'Great job! Strong mastery.' })
+      else if (pct >= 66) setRankBadge({ text: 'Top 20%', desc: 'Great job! Strong mastery 🎊.' })
       else if (pct >= 50) setRankBadge({ text: 'Top 50%', desc: 'Good effort. Review weaker topics.' })
       else setRankBadge({ text: 'Needs Work', desc: 'Review topic notes and try again!' })
       return
@@ -287,7 +287,7 @@ export default function QuizView() {
 
     ctx.fillStyle = '#F8FAFC'
     ctx.font = 'bold 26px sans-serif'
-    ctx.fillText('DELTOID', 84, 90)
+    ctx.fillText('Deltoid App', 84, 90)
 
     ctx.fillStyle = '#94A3B8'
     ctx.font = '16px sans-serif'
@@ -556,7 +556,7 @@ export default function QuizView() {
       {/* Slide-out / Collapsible Navigation Grid */}
       {showGrid && (
         <div className="bg-white border border-paperDim p-4 rounded-card space-y-3 shadow-md">
-           <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-slate uppercase">Question Navigator</span>
             <button onClick={() => setShowGrid(false)} className="text-xs text-slate hover:text-ink font-mono">Close ✕</button>
           </div>
