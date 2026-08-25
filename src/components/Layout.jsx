@@ -79,7 +79,7 @@ export default function Layout({ children }) {
         {children || <Outlet />}
       </main>
 
-      {/* Clinical Footer */}
+      {/* Clean PWA Footer */}
       <footer className="border-t border-paperDim bg-white/60 py-6 text-xs text-slate">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export default function Layout({ children }) {
             <span className="text-slate-light">• Active Recall & Medical Practice</span>
           </div>
           <p className="font-mono text-slate-light text-[11px]">
-            High-Yield Preclinical & Clinical Practice
+            © {new Date().getFullYear()} Deltoid. All rights reserved.
           </p>
         </div>
       </footer>
