@@ -123,7 +123,17 @@ export default function QuizView() {
           setPastAttempt(attemptData)
           setScore(attemptData.score)
           if (attemptData.answers) {
-            setUserAnswers(attemptData.answers)
+            let parsedAnswers = attemptData.answers
+            if (typeof parsedAnswers === 'string') {
+              try {
+                parsedAnswers = JSON.parse(parsedAnswers)
+              } catch (e) {
+                console.error('Failed to parse attempt answers:', e)
+              }
+            }
+            setUserAnswers(parsedAnswers || {})
+          } else {
+            setUserAnswers({})
           }
           await loadAnswerKey(quizId)
           await computeRank(quizId, attemptData.score, questData.length)
@@ -496,9 +506,9 @@ export default function QuizView() {
         <div className="space-y-5">
           <h2 className="text-xl font-display font-bold text-ink">Answer Review & Explanations</h2>
           {questions.map((q, idx) => {
-            const userChoice = userAnswers[q.id]
-            const hasChosen = userChoice !== undefined
-            const isCorrect = userChoice === correctAnswers[q.id]
+            const userChoice = userAnswers[q.id] ?? userAnswers[String(q.id)]
+            const hasChosen = userChoice !== undefined && userChoice !== null
+            const isCorrect = hasChosen && userChoice === correctAnswers[q.id]
 
             return (
               <div
@@ -511,11 +521,15 @@ export default function QuizView() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-mono text-xs font-bold text-slate">Question #{idx + 1}</span>
-                  {hasChosen && (
+                  {hasChosen ? (
                     <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded ${
                       isCorrect ? 'bg-venous/20 text-venousDark' : 'bg-vital/20 text-vitalDark'
                     }`}>
                       {isCorrect ? 'Correct' : 'Incorrect'}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">
+                      Unanswered
                     </span>
                   )}
                 </div>
@@ -528,12 +542,27 @@ export default function QuizView() {
                     const isCorrectOpt = correctAnswers[q.id] === opt
 
                     let style = "border-paperDim bg-white text-ink"
-                    if (isCorrectOpt) style = "border-venous bg-venous/15 font-semibold text-ink"
-                    else if (isSelected && !isCorrect) style = "border-vital bg-vital/15 text-vitalDark"
+                    let badgeText = null
+
+                    if (isSelected && isCorrectOpt) {
+                      style = "border-venous bg-venous/15 font-semibold text-ink"
+                      badgeText = "✓ Your Choice"
+                    } else if (isSelected && !isCorrectOpt) {
+                      style = "border-vital bg-vital/15 font-semibold text-vitalDark"
+                      badgeText = "✕ Your Choice"
+                    } else if (isCorrectOpt) {
+                      style = "border-venous/60 bg-venous/5 font-semibold text-ink"
+                      badgeText = "✓ Correct Answer"
+                    }
 
                     return (
-                      <div key={oIdx} className={`p-3 rounded-card text-xs sm:text-sm border ${style}`}>
-                        {opt}
+                      <div key={oIdx} className={`p-3 rounded-card text-xs sm:text-sm border flex items-center justify-between ${style}`}>
+                        <span>{opt}</span>
+                        {badgeText && (
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider ml-2 shrink-0">
+                            {badgeText}
+                          </span>
+                        )}
                       </div>
                     )
                   })}
@@ -674,4 +703,4 @@ export default function QuizView() {
       )}
     </div>
   )
-                                     }
+}
