@@ -74,7 +74,7 @@ export default function QuizHistory() {
   to={`/quiz/${att.quiz_id}`}
   className="btn-primary text-xs py-2 px-3"
 >
-  Retake
+  Review
 </Link>
                 
               </div>
