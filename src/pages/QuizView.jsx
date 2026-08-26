@@ -12,6 +12,63 @@ function shuffleArray(array) {
   return shuffled
 }
 
+// Robust helper to locate user's chosen option regardless of key structure (ID, index, sort_order, array)
+function getUserChoice(userAnswers, question, index) {
+  if (!userAnswers) return null
+
+  let answers = userAnswers
+  if (typeof answers === 'string') {
+    try { answers = JSON.parse(answers) } catch (e) {}
+    if (typeof answers === 'string') {
+      try { answers = JSON.parse(answers) } catch (e) {}
+    }
+  }
+
+  if (!answers || typeof answers !== 'object') return null
+
+  const qId = question?.id
+  const qSortOrder = question?.sort_order
+
+  // 1. Array of items
+  if (Array.isArray(answers)) {
+    const foundObj = answers.find(item =>
+      item && typeof item === 'object' && (
+        String(item.question_id || item.questionId || item.id) === String(qId) ||
+        String(item.sort_order || item.sortOrder) === String(qSortOrder)
+      )
+    )
+    if (foundObj) return foundObj.answer || foundObj.choice || foundObj.selectedOption || null
+    if (answers[index] !== undefined && typeof answers[index] === 'string') {
+      return answers[index]
+    }
+  }
+
+  // 2. Direct Object Key by Question ID
+  if (qId !== undefined && qId !== null) {
+    if (answers[qId] !== undefined) return answers[qId]
+    if (answers[String(qId)] !== undefined) return answers[String(qId)]
+  }
+
+  // 3. Fallback by sort_order or 0-based index
+  if (qSortOrder !== undefined && qSortOrder !== null) {
+    if (answers[qSortOrder] !== undefined) return answers[qSortOrder]
+    if (answers[String(qSortOrder)] !== undefined) return answers[String(qSortOrder)]
+  }
+
+  if (answers[index] !== undefined) return answers[index]
+  if (answers[String(index)] !== undefined) return answers[String(index)]
+
+  // 4. Fuzzy Key Match
+  if (qId !== undefined && qId !== null) {
+    const key = Object.keys(answers).find(k => String(k).trim() === String(qId).trim())
+    if (key && answers[key] !== undefined) return answers[key]
+  }
+
+  return null
+}
+
+const normalize = (val) => String(val ?? '').trim().toLowerCase()
+
 export default function QuizView() {
   const { quizId } = useParams()
   const [searchParams] = useSearchParams()
@@ -23,7 +80,6 @@ export default function QuizView() {
   const [questions, setQuestions] = useState([])
   const [userAnswers, setUserAnswers] = useState({})
   
-  // Pagination & Navigation Grid State
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showGrid, setShowGrid] = useState(false)
 
@@ -66,7 +122,6 @@ export default function QuizView() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
 
-      // Fetch Quiz Meta
       const { data: qData, error: qErr } = await supabase
         .from('quizzes')
         .select('*')
@@ -77,7 +132,6 @@ export default function QuizView() {
       setQuiz(qData)
       setTimeLeft(qData.time_limit_minutes * 60)
 
-      // Fetch Questions (correct_answer intentionally excluded -- graded server-side now)
       const { data: questData, error: questErr } = await supabase
         .from('questions')
         .select('id, quiz_id, question_type, prompt, options, explanation, sort_order')
@@ -85,10 +139,9 @@ export default function QuizView() {
         .order('sort_order', { ascending: true })
 
       if (questErr) throw questErr
-      setQuestions(shuffleArray(questData || []))
+      setQuestions(questData || [])
 
       if (user) {
-        // Daily Cap Check (300 Questions Max / Day)
         const startOfToday = new Date()
         startOfToday.setHours(0, 0, 0, 0)
 
@@ -103,7 +156,6 @@ export default function QuizView() {
           setDailyLimitReached(true)
         }
 
-        // Fetch Targeted Attempt (from history query param) OR Default to Latest
         let attemptQuery = supabase
           .from('quiz_attempts')
           .select('*')
@@ -125,20 +177,13 @@ export default function QuizView() {
           if (attemptData.answers) {
             let parsedAnswers = attemptData.answers
             if (typeof parsedAnswers === 'string') {
-              try {
-                parsedAnswers = JSON.parse(parsedAnswers)
-              } catch (e) {
-                console.error('Failed to parse attempt answers:', e)
-              }
+              try { parsedAnswers = JSON.parse(parsedAnswers) } catch (e) {}
             }
             setUserAnswers(parsedAnswers || {})
-          } else {
-            setUserAnswers({})
           }
           await loadAnswerKey(quizId)
           await computeRank(quizId, attemptData.score, questData.length)
 
-          // Auto-open detailed review mode if clicked directly from History
           if (targetAttemptId) {
             setSubmitted(true)
           }
@@ -237,7 +282,6 @@ export default function QuizView() {
     const scale = size / 64
     ctx.translate(x, y)
 
-    // Deep Ink Rounded Container
     const bgGrad = ctx.createLinearGradient(0, 0, 64 * scale, 64 * scale)
     bgGrad.addColorStop(0, '#1B2A4A')
     bgGrad.addColorStop(1, '#0E1726')
@@ -246,7 +290,6 @@ export default function QuizView() {
     ctx.roundRect(0, 0, 64 * scale, 64 * scale, 14 * scale)
     ctx.fill()
 
-    // Outer Gradient Delta Triangle
     const tealGrad = ctx.createLinearGradient(0, 0, 64 * scale, 64 * scale)
     tealGrad.addColorStop(0, '#529EA3')
     tealGrad.addColorStop(1, '#2C5254')
@@ -258,7 +301,6 @@ export default function QuizView() {
     ctx.closePath()
     ctx.fill()
 
-    // Sharp Inner Cutout
     ctx.fillStyle = bgGrad
     ctx.beginPath()
     ctx.moveTo(32 * scale, 22 * scale)
@@ -267,7 +309,6 @@ export default function QuizView() {
     ctx.closePath()
     ctx.fill()
 
-    // Vital Crimson Core Node
     const vitalGrad = ctx.createLinearGradient(28.5 * scale, 31.5 * scale, 35.5 * scale, 38.5 * scale)
     vitalGrad.addColorStop(0, '#E5593F')
     vitalGrad.addColorStop(1, '#A8321C')
@@ -292,11 +333,9 @@ export default function QuizView() {
     ctx.save()
     ctx.globalAlpha = 1.0
 
-    // Base Canvas Background
     ctx.fillStyle = '#0F172A'
     ctx.fillRect(0, 0, 600, 600)
 
-    // Translucent Delta Watermark
     ctx.save()
     ctx.globalAlpha = 0.07
     const watermarkGrad = ctx.createLinearGradient(150, 100, 450, 500)
@@ -312,7 +351,6 @@ export default function QuizView() {
     ctx.fill()
     ctx.restore()
 
-    // Top Accent Bar
     const topBarGrad = ctx.createLinearGradient(40, 0, 560, 0)
     topBarGrad.addColorStop(0, '#10B981')
     topBarGrad.addColorStop(0.5, '#38BDF8')
@@ -320,7 +358,6 @@ export default function QuizView() {
     ctx.fillStyle = topBarGrad
     ctx.fillRect(40, 36, 520, 8)
 
-    // Header Logo & Title
     drawDeltoidLogo(ctx, 40, 64, 34)
 
     ctx.fillStyle = '#F8FAFC'
@@ -331,7 +368,6 @@ export default function QuizView() {
     ctx.font = '16px sans-serif'
     ctx.fillText(quiz?.title || 'Medical Topic Quiz', 40, 130)
 
-    // Inner Container
     ctx.fillStyle = '#1E293B'
     ctx.beginPath()
     ctx.roundRect(40, 160, 520, 270, 16)
@@ -341,7 +377,6 @@ export default function QuizView() {
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    // Rank Text
     ctx.fillStyle = '#38BDF8'
     ctx.font = 'bold 60px sans-serif'
     ctx.fillText(rankBadge.text, 70, 248)
@@ -350,13 +385,11 @@ export default function QuizView() {
     ctx.font = '18px sans-serif'
     ctx.fillText(rankBadge.desc, 70, 296)
 
-    // Score Accent Text
     const scorePct = Math.round((score / questions.length) * 100)
     ctx.fillStyle = '#34D399'
     ctx.font = 'bold 22px monospace'
     ctx.fillText(`Score: ${score} / ${questions.length} (${scorePct}%)`, 70, 358)
 
-    // Footer
     ctx.fillStyle = '#64748B'
     ctx.font = '14px monospace'
     ctx.fillText('deltoid.app • Active Recall & Medical Practice', 40, 515)
@@ -506,13 +539,15 @@ export default function QuizView() {
         <div className="space-y-5">
           <h2 className="text-xl font-display font-bold text-ink">Answer Review & Explanations</h2>
           {questions.map((q, idx) => {
-            const userChoice = userAnswers[q.id] ?? userAnswers[String(q.id)]
-            const hasChosen = userChoice !== undefined && userChoice !== null
-            const isCorrect = hasChosen && userChoice === correctAnswers[q.id]
+            const userChoice = getUserChoice(userAnswers, q, idx)
+            const hasChosen = userChoice !== null && userChoice !== undefined
+            
+            const correctOpt = correctAnswers[q.id]
+            const isCorrect = hasChosen && normalize(userChoice) === normalize(correctOpt)
 
             return (
               <div
-                key={q.id}
+                key={q.id || idx}
                 className={`p-5 rounded-card border ${
                   hasChosen
                     ? isCorrect ? 'bg-venous/5 border-venous/30' : 'bg-vital/5 border-vital/30'
@@ -537,9 +572,9 @@ export default function QuizView() {
                 <p className="font-medium text-ink mb-4 whitespace-pre-line text-sm sm:text-base leading-relaxed">{q.prompt}</p>
 
                 <div className="space-y-2 mb-4">
-                  {q.options.map((opt, oIdx) => {
-                    const isSelected = userChoice === opt
-                    const isCorrectOpt = correctAnswers[q.id] === opt
+                  {(q.options || []).map((opt, oIdx) => {
+                    const isSelected = hasChosen && normalize(userChoice) === normalize(opt)
+                    const isCorrectOpt = correctOpt !== undefined && normalize(correctOpt) === normalize(opt)
 
                     let style = "border-paperDim bg-white text-ink"
                     let badgeText = null
@@ -582,7 +617,7 @@ export default function QuizView() {
   }
 
   const currentQ = questions[currentIndex]
-  const answeredCount = Object.keys(userAnswers).length
+  const answeredCount = Object.keys(userAnswers || {}).length
 
   return (
     <div className="max-w-2xl mx-auto p-2 space-y-6 relative">
@@ -608,7 +643,7 @@ export default function QuizView() {
         <div
           className="h-full rounded-full transition-all duration-300"
           style={{
-            width: `${(answeredCount / questions.length) * 100}%`,
+            width: `${questions.length ? (answeredCount / questions.length) * 100 : 0}%`,
             backgroundColor: '#3F8F6D'
           }}
         />
@@ -622,7 +657,7 @@ export default function QuizView() {
           </div>
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
             {questions.map((q, idx) => {
-              const isAnswered = userAnswers[q.id] !== undefined
+              const isAnswered = getUserChoice(userAnswers, q, idx) !== null
               const isCurrent = idx === currentIndex
 
               let btnStyle = "bg-paper text-slate border-paperDim hover:border-venous"
@@ -631,7 +666,7 @@ export default function QuizView() {
 
               return (
                 <button
-                  key={q.id}
+                  key={q.id || idx}
                   onClick={() => {
                     setCurrentIndex(idx)
                     setShowGrid(false)
@@ -653,8 +688,8 @@ export default function QuizView() {
             <p className="font-medium text-ink text-base md:text-lg whitespace-pre-line leading-relaxed">{currentQ.prompt}</p>
 
             <div className="space-y-2.5">
-              {currentQ.options.map((opt, oIdx) => {
-                const isSelected = userAnswers[currentQ.id] === opt
+              {(currentQ.options || []).map((opt, oIdx) => {
+                const isSelected = normalize(userAnswers[currentQ.id]) === normalize(opt)
                 return (
                   <button
                     key={oIdx}
