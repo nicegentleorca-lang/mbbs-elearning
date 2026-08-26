@@ -24,6 +24,7 @@ export default function QuizView() {
   const [pastAttempt, setPastAttempt] = useState(null)
   const [rankBadge, setRankBadge] = useState({ text: '', desc: '' })
   const [currentUser, setCurrentUser] = useState(null)
+  const [correctAnswers, setCorrectAnswers] = useState({})
   const [dailyLimitReached, setDailyLimitReached] = useState(false)
 
   useEffect(() => {
@@ -64,10 +65,10 @@ export default function QuizView() {
       setQuiz(qData)
       setTimeLeft(qData.time_limit_minutes * 60)
 
-      // Fetch Questions
+      // Fetch Questions (correct_answer intentionally excluded -- graded server-side now)
       const { data: questData, error: questErr } = await supabase
         .from('questions')
-        .select('*')
+        .select('id, quiz_id, question_type, prompt, options, explanation, sort_order')
         .eq('quiz_id', quizId)
         .order('sort_order', { ascending: true })
 
@@ -104,6 +105,7 @@ export default function QuizView() {
           if (attemptData.answers) {
             setUserAnswers(attemptData.answers)
           }
+          await loadAnswerKey(quizId)
           await computeRank(quizId, attemptData.score, questData.length)
         }
       }
@@ -136,38 +138,53 @@ export default function QuizView() {
     if (submitted || submitting) return
     setSubmitting(true)
 
-    let calculatedScore = 0
-    questions.forEach(q => {
-      if (userAnswers[q.id] === q.correct_answer) {
-        calculatedScore += 1
-      }
-    })
-
-    const totalQuestions = questions.length
-    const percentage = Number(((calculatedScore / totalQuestions) * 100).toFixed(2))
-
     try {
-      if (currentUser) {
-        await supabase
-          .from('quiz_attempts')
-          .upsert([{
-            quiz_id: quizId,
-            user_id: currentUser.id,
-            score: calculatedScore,
-            total_questions: totalQuestions,
-            percentage: percentage,
-            answers: userAnswers
-          }], { onConflict: 'quiz_id,user_id' })
+      if (!currentUser) {
+        // correct_answer is no longer sent to the browser at all (Problem #1 fix),
+        // so grading is only possible server-side, which requires a logged-in user.
+        alert('Please sign in to submit and have your quiz graded.')
+        return
       }
 
-      setScore(calculatedScore)
+      // Grading now happens server-side in Postgres (submit_quiz_attempt).
+      // The browser only sends the student's picks -- never a score --
+      // so the final score can't be tampered with client-side.
+      const { data, error } = await supabase.rpc('submit_quiz_attempt', {
+        p_quiz_id: quizId,
+        p_answers: userAnswers
+      })
+
+      if (error) throw error
+
+      setScore(data.score)
       setSubmitted(true)
       setShowGrid(false)
-      await computeRank(quizId, calculatedScore, totalQuestions)
+      await loadAnswerKey(quizId)
+      await computeRank(quizId, data.score, data.total_questions)
     } catch (err) {
       alert('Submission failed: ' + err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // Fetches the answer key for review -- only succeeds server-side if this
+  // user has an existing submitted attempt for this quiz (enforced in the
+  // get_quiz_answers_for_review function itself).
+  async function loadAnswerKey(quizId) {
+    try {
+      const { data, error } = await supabase.rpc('get_quiz_answers_for_review', {
+        p_quiz_id: quizId
+      })
+      if (error) throw error
+
+      const map = {}
+      ;(data || []).forEach(row => {
+        map[row.question_id] = row.correct_answer
+      })
+      setCorrectAnswers(map)
+    } catch (err) {
+      console.error('Error loading answer key:', err)
     }
   }
 
@@ -480,7 +497,7 @@ export default function QuizView() {
           {questions.map((q, idx) => {
             const userChoice = userAnswers[q.id]
             const hasChosen = userChoice !== undefined
-            const isCorrect = userChoice === q.correct_answer
+            const isCorrect = userChoice === correctAnswers[q.id]
 
             return (
               <div
@@ -507,7 +524,7 @@ export default function QuizView() {
                 <div className="space-y-2 mb-4">
                   {q.options.map((opt, oIdx) => {
                     const isSelected = userChoice === opt
-                    const isCorrectOpt = q.correct_answer === opt
+                    const isCorrectOpt = correctAnswers[q.id] === opt
 
                     let style = "border-paperDim bg-white text-ink"
                     if (isCorrectOpt) style = "border-venous bg-venous/15 font-semibold text-ink"
@@ -556,7 +573,7 @@ export default function QuizView() {
           timeLeft < 60 ? 'bg-vital/15 text-vital animate-pulse border border-vital/30' : 'bg-paper text-ink border border-paperDim'
         }`}>
           ⏱ {formatTime(timeLeft)}
-    </div>
+        </div>
       </div>
 
       {/* Slim Progress Bar */}
@@ -662,4 +679,4 @@ export default function QuizView() {
       )}
     </div>
   )
-            } 
+}
