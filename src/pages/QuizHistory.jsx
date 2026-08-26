@@ -71,11 +71,12 @@ export default function QuizHistory() {
                   <p className="text-xs font-mono text-slate">{att.percentage}% Score</p>
                 </div>
                 <Link
-                  to={`/quiz/${att.quiz_id}`}
-                  className="btn-primary text-xs py-2 px-3"
-                >
-                  Review
-                </Link>
+  to={`/quiz/${att.quiz_id}`}
+  className="btn-primary text-xs py-2 px-3"
+>
+  Retake
+</Link>
+                
               </div>
             </div>
           ))}
