@@ -189,30 +189,23 @@ export default function QuizView() {
   }
 
   async function computeRank(quizId, userScore, totalQuestions) {
-    const pct = Math.round((userScore / totalQuestions) * 100)
-    
-    const { data: allAttempts } = await supabase
-      .from('quiz_attempts')
-      .select('score')
-      .eq('quiz_id', quizId)
+    // Ranking math now happens entirely in Postgres (get_quiz_rank).
+    // The browser never downloads other students' scores -- just the
+    // final { text, desc } result -- so this stays cheap no matter how
+    // many attempts a popular quiz accumulates over time.
+    try {
+      const { data, error } = await supabase.rpc('get_quiz_rank', {
+        p_quiz_id: quizId,
+        p_user_score: userScore,
+        p_total_questions: totalQuestions
+      })
 
-    if (!allAttempts || allAttempts.length < 5) {
-      if (pct >= 90) setRankBadge({ text: 'Top 5%', desc: 'Outstanding performance!' })
-      else if (pct >= 66) setRankBadge({ text: 'Top 20%', desc: 'Great job! Strong mastery 🎊.' })
-      else if (pct >= 50) setRankBadge({ text: 'Top 50%', desc: 'Good effort. Review weaker topics.' })
-      else setRankBadge({ text: 'Needs Work', desc: 'Review topic notes and try again!' })
-      return
+      if (error) throw error
+
+      setRankBadge({ text: data.text, desc: data.desc })
+    } catch (err) {
+      console.error('Error computing rank:', err)
     }
-
-    const lower = allAttempts.filter(a => a.score < userScore).length
-    const equal = allAttempts.filter(a => a.score === userScore).length
-    const percentile = Math.round(((lower + 0.5 * equal) / allAttempts.length) * 100)
-    const topRank = Math.max(1, 100 - percentile)
-
-    setRankBadge({
-      text: `Top ${topRank}%`,
-      desc: `Scored better than ${percentile}% of students on this quiz.`
-    })
   }
 
   // Helper function to render exact favicon.svg geometry
@@ -564,7 +557,7 @@ export default function QuizView() {
             onClick={() => setShowGrid(!showGrid)}
             className="text-xs font-mono font-bold text-venous hover:underline flex items-center gap-1"
           >
-            📊 Grid ({answeredCount}/{questions.length})
+     📊 Grid ({answeredCount}/{questions.length})
           </button>
           <p className="text-xs text-slate font-medium mt-0.5">Question {currentIndex + 1} of {questions.length}</p>
         </div>
@@ -679,4 +672,4 @@ export default function QuizView() {
       )}
     </div>
   )
-}
+                  }
