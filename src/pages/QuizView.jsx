@@ -101,13 +101,16 @@ export default function QuizView() {
           setDailyLimitReached(true)
         }
 
-        // Fetch Previous Attempt (If Any)
-        const { data: attemptData } = await supabase
+        // Fetch Previous Attempt (If Any) - Safely queries latest attempt to support multiple retakes
+        const { data: attempts } = await supabase
           .from('quiz_attempts')
           .select('*')
           .eq('quiz_id', quizId)
           .eq('user_id', user.id)
-          .maybeSingle()
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        const attemptData = attempts?.[0]
 
         if (attemptData) {
           setPastAttempt(attemptData)
@@ -151,15 +154,10 @@ export default function QuizView() {
 
     try {
       if (!currentUser) {
-        // correct_answer is no longer sent to the browser at all (Problem #1 fix),
-        // so grading is only possible server-side, which requires a logged-in user.
         alert('Please sign in to submit and have your quiz graded.')
         return
       }
 
-      // Grading now happens server-side in Postgres (submit_quiz_attempt).
-      // The browser only sends the student's picks -- never a score --
-      // so the final score can't be tampered with client-side.
       const { data, error } = await supabase.rpc('submit_quiz_attempt', {
         p_quiz_id: quizId,
         p_answers: userAnswers
@@ -179,9 +177,6 @@ export default function QuizView() {
     }
   }
 
-  // Fetches the answer key for review -- only succeeds server-side if this
-  // user has an existing submitted attempt for this quiz (enforced in the
-  // get_quiz_answers_for_review function itself).
   async function loadAnswerKey(quizId) {
     try {
       const { data, error } = await supabase.rpc('get_quiz_answers_for_review', {
@@ -200,10 +195,6 @@ export default function QuizView() {
   }
 
   async function computeRank(quizId, userScore, totalQuestions) {
-    // Ranking math now happens entirely in Postgres (get_quiz_rank).
-    // The browser never downloads other students' scores -- just the
-    // final { text, desc } result -- so this stays cheap no matter how
-    // many attempts a popular quiz accumulates over time.
     try {
       const { data, error } = await supabase.rpc('get_quiz_rank', {
         p_quiz_id: quizId,
@@ -219,7 +210,6 @@ export default function QuizView() {
     }
   }
 
-  // Helper function to render exact favicon.svg geometry
   function drawDeltoidLogo(ctx, x, y, size) {
     ctx.save()
     const scale = size / 64
@@ -272,7 +262,6 @@ export default function QuizView() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
-    // Render at native device resolution so shared/downloaded PNGs stay sharp
     const dpr = window.devicePixelRatio || 1
     canvas.width = 600 * dpr
     canvas.height = 600 * dpr
@@ -281,11 +270,11 @@ export default function QuizView() {
     ctx.save()
     ctx.globalAlpha = 1.0
 
-    // 1. Base Canvas Background (Deep Midnight Ink)
+    // Base Canvas Background
     ctx.fillStyle = '#0F172A'
     ctx.fillRect(0, 0, 600, 600)
 
-    // 2. Translucent Delta Watermark Background Logo (RESTORED EXACT ORIGINAL)
+    // Translucent Delta Watermark
     ctx.save()
     ctx.globalAlpha = 0.07
     const watermarkGrad = ctx.createLinearGradient(150, 100, 450, 500)
@@ -294,22 +283,22 @@ export default function QuizView() {
     ctx.fillStyle = watermarkGrad
 
     ctx.beginPath()
-    ctx.moveTo(300, 120) // Top vertex
-    ctx.lineTo(510, 480) // Bottom right
-    ctx.lineTo(90, 480)  // Bottom left
+    ctx.moveTo(300, 120)
+    ctx.lineTo(510, 480)
+    ctx.lineTo(90, 480)
     ctx.closePath()
     ctx.fill()
     ctx.restore()
 
-    // 3. Electric Gradient Accent Bar (Top) (RESTORED EXACT ORIGINAL)
+    // Top Accent Bar
     const topBarGrad = ctx.createLinearGradient(40, 0, 560, 0)
-    topBarGrad.addColorStop(0, '#10B981') // Emerald
-    topBarGrad.addColorStop(0.5, '#38BDF8') // Cyan
-    topBarGrad.addColorStop(1, '#C1442D') // Vital Crimson
+    topBarGrad.addColorStop(0, '#10B981')
+    topBarGrad.addColorStop(0.5, '#38BDF8')
+    topBarGrad.addColorStop(1, '#C1442D')
     ctx.fillStyle = topBarGrad
     ctx.fillRect(40, 36, 520, 8)
 
-    // 4. Header: Official Deltoid Favicon Logo + Brand Text
+    // Header Logo & Title
     drawDeltoidLogo(ctx, 40, 64, 34)
 
     ctx.fillStyle = '#F8FAFC'
@@ -320,7 +309,7 @@ export default function QuizView() {
     ctx.font = '16px sans-serif'
     ctx.fillText(quiz?.title || 'Medical Topic Quiz', 40, 130)
 
-    // 5. High-Contrast Inner Container Box
+    // Inner Container
     ctx.fillStyle = '#1E293B'
     ctx.beginPath()
     ctx.roundRect(40, 160, 520, 270, 16)
@@ -330,23 +319,22 @@ export default function QuizView() {
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    // 6. POP Rank Text (Electric Cyan)
+    // Rank Text
     ctx.fillStyle = '#38BDF8'
     ctx.font = 'bold 60px sans-serif'
     ctx.fillText(rankBadge.text, 70, 248)
 
-    // Rank Description
     ctx.fillStyle = '#F1F5F9'
     ctx.font = '18px sans-serif'
     ctx.fillText(rankBadge.desc, 70, 296)
 
-    // Score Accent Text (Vibrant Emerald)
+    // Score Accent Text
     const scorePct = Math.round((score / questions.length) * 100)
     ctx.fillStyle = '#34D399'
     ctx.font = 'bold 22px monospace'
     ctx.fillText(`Score: ${score} / ${questions.length} (${scorePct}%)`, 70, 358)
 
-    // 7. Footer Meta Line
+    // Footer
     ctx.fillStyle = '#64748B'
     ctx.font = '14px monospace'
     ctx.fillText('deltoid.app • Active Recall & Medical Practice', 40, 515)
@@ -386,7 +374,6 @@ export default function QuizView() {
     )
   }
 
-  // Daily 300 Questions Soft Cap Screen
   if (dailyLimitReached && !quizStarted && !submitted) {
     return (
       <div className="max-w-xl mx-auto p-8 text-center space-y-6 bg-white border border-paperDim rounded-card shadow-sm">
@@ -402,7 +389,6 @@ export default function QuizView() {
     )
   }
 
-  // Quiz Intro Screen (With Retake vs. Review Support)
   if (!quizStarted && !submitted) {
     return (
       <div className="max-w-2xl mx-auto p-6 text-center space-y-6 bg-white border border-paperDim rounded-card shadow-sm">
@@ -457,7 +443,6 @@ export default function QuizView() {
     )
   }
 
-  // Review Screen (All Questions Displayed for Active Recall Review)
   if (submitted) {
     return (
       <div className="max-w-3xl mx-auto p-2 space-y-6">
@@ -555,20 +540,18 @@ export default function QuizView() {
     )
   }
 
-  // Active Quiz Mode (1 Question at a Time)
   const currentQ = questions[currentIndex]
   const answeredCount = Object.keys(userAnswers).length
 
   return (
     <div className="max-w-2xl mx-auto p-2 space-y-6 relative">
-      {/* Top Header Bar */}
       <div className="bg-white border border-paperDim p-4 rounded-card flex items-center justify-between shadow-sm">
         <div>
           <button
             onClick={() => setShowGrid(!showGrid)}
             className="text-xs font-mono font-bold text-venous hover:underline flex items-center gap-1"
           >
-     📊 Grid ({answeredCount}/{questions.length})
+            📊 Grid ({answeredCount}/{questions.length})
           </button>
           <p className="text-xs text-slate font-medium mt-0.5">Question {currentIndex + 1} of {questions.length}</p>
         </div>
@@ -580,7 +563,6 @@ export default function QuizView() {
         </div>
       </div>
 
-      {/* Slim Progress Bar */}
       <div className="w-full h-1.5 rounded-full bg-paperDim overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-300"
@@ -591,7 +573,6 @@ export default function QuizView() {
         />
       </div>
 
-      {/* Slide-out / Collapsible Navigation Grid */}
       {showGrid && (
         <div className="bg-white border border-paperDim p-4 rounded-card space-y-3 shadow-md">
           <div className="flex items-center justify-between">
@@ -624,7 +605,6 @@ export default function QuizView() {
         </div>
       )}
 
-      {/* Single Question Display Card */}
       {currentQ && (
         <div className="bg-white p-6 border border-paperDim rounded-card space-y-5 shadow-sm min-h-[300px] flex flex-col justify-between">
           <div className="space-y-4">
@@ -652,7 +632,6 @@ export default function QuizView() {
             </div>
           </div>
 
-          {/* Bottom Pagination Controls */}
           <div className="flex items-center justify-between pt-4 border-t border-paperDim mt-6">
             <button
               onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
@@ -683,4 +662,4 @@ export default function QuizView() {
       )}
     </div>
   )
-                                                                }
+}
