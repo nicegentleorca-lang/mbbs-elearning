@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 // Helper function to shuffle questions (Fisher-Yates Shuffle)
@@ -14,6 +14,8 @@ function shuffleArray(array) {
 
 export default function QuizView() {
   const { quizId } = useParams()
+  const [searchParams] = useSearchParams()
+  const targetAttemptId = searchParams.get('attemptId')
   const canvasRef = useRef(null)
 
   const [loading, setLoading] = useState(true)
@@ -39,7 +41,7 @@ export default function QuizView() {
 
   useEffect(() => {
     loadQuizData()
-  }, [quizId])
+  }, [quizId, targetAttemptId])
 
   useEffect(() => {
     if (!quizStarted || submitted || timeLeft <= 0) return
@@ -101,15 +103,20 @@ export default function QuizView() {
           setDailyLimitReached(true)
         }
 
-        // Fetch Previous Attempt (If Any) - Safely queries latest attempt to support multiple retakes
-        const { data: attempts } = await supabase
+        // Fetch Targeted Attempt (from history query param) OR Default to Latest
+        let attemptQuery = supabase
           .from('quiz_attempts')
           .select('*')
           .eq('quiz_id', quizId)
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
 
+        if (targetAttemptId) {
+          attemptQuery = attemptQuery.eq('id', targetAttemptId)
+        } else {
+          attemptQuery = attemptQuery.order('created_at', { ascending: false }).limit(1)
+        }
+
+        const { data: attempts } = await attemptQuery
         const attemptData = attempts?.[0]
 
         if (attemptData) {
@@ -120,6 +127,11 @@ export default function QuizView() {
           }
           await loadAnswerKey(quizId)
           await computeRank(quizId, attemptData.score, questData.length)
+
+          // Auto-open detailed review mode if clicked directly from History
+          if (targetAttemptId) {
+            setSubmitted(true)
+          }
         }
       }
     } catch (err) {
@@ -662,4 +674,4 @@ export default function QuizView() {
       )}
     </div>
   )
-}
+                                     }
