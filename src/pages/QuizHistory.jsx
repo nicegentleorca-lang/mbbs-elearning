@@ -27,7 +27,7 @@ export default function QuizHistory() {
           )
         `)
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false, nullsFirst: false })
 
       if (error) throw error
       setHistoryList(data || [])
@@ -61,7 +61,7 @@ export default function QuizHistory() {
                 </span>
                 <h3 className="font-display font-semibold text-ink">{att.quizzes?.title || 'Topic Quiz'}</h3>
                 <p className="text-xs text-slate">
-                  Attempted on {new Date(att.created_at).toLocaleDateString()}
+                  Attempted on {new Date(att.updated_at || att.created_at).toLocaleDateString()}
                 </p>
               </div>
 
@@ -83,4 +83,4 @@ export default function QuizHistory() {
       )}
     </div>
   )
-                  }
+}
