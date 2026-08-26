@@ -2,6 +2,16 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+// Helper function to shuffle questions (Fisher-Yates Shuffle)
+function shuffleArray(array) {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 export default function QuizView() {
   const { quizId } = useParams()
   const canvasRef = useRef(null)
@@ -73,7 +83,7 @@ export default function QuizView() {
         .order('sort_order', { ascending: true })
 
       if (questErr) throw questErr
-      setQuestions(questData || [])
+      setQuestions(shuffleArray(questData || []))
 
       if (user) {
         // Daily Cap Check (300 Questions Max / Day)
@@ -117,6 +127,7 @@ export default function QuizView() {
   }
 
   function handleStartFresh() {
+    setQuestions(prev => shuffleArray(prev))
     setUserAnswers({})
     setCurrentIndex(0)
     setTimeLeft((quiz?.time_limit_minutes || 10) * 60)
@@ -672,4 +683,4 @@ export default function QuizView() {
       )}
     </div>
   )
-                  }
+                                                                }
