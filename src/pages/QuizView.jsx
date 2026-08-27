@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -130,6 +130,16 @@ export default function QuizView() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  // Double-submit ref lock & error banner state (Matched to your schema)
+  const hasSubmittedRef = useRef(false)
+  const userAnswersRef = useRef(userAnswers)
+  const [submitError, setSubmitError] = useState(null)
+
+  // Synchronize choice ref on state update
+  useEffect(() => {
+    userAnswersRef.current = userAnswers
+  }, [userAnswers])
+
   const [score, setScore] = useState(0)
   const [pastAttempt, setPastAttempt] = useState(null)
   const [rankBadge, setRankBadge] = useState({ text: '', desc: '' })
@@ -144,19 +154,21 @@ export default function QuizView() {
   useEffect(() => {
     if (!quizStarted || submitted || timeLeft <= 0) return
 
+    // Calculate fixed end timestamp from current remaining time
+    const endTime = Date.now() + timeLeft * 1000
+
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          handleAutoSubmit()
-          return 0
-        }
-        return prev - 1
-      })
+      const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000))
+      setTimeLeft(remaining)
+
+      if (remaining <= 0) {
+        clearInterval(timer)
+        handleSubmit(true) // Triggers immediate submission with zero prompts
+      }
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [quizStarted, submitted, timeLeft])
+  }, [quizStarted, submitted, handleSubmit])
 
   async function loadQuizData() {
     setLoading(true)
@@ -239,6 +251,8 @@ export default function QuizView() {
   }
 
   function handleStartFresh() {
+    hasSubmittedRef.current = false
+    setSubmitError(null)
     setQuestions(prev => shuffleArray(prev))
     setUserAnswers({})
     setCurrentIndex(0)
@@ -252,23 +266,32 @@ export default function QuizView() {
     setUserAnswers(prev => ({ ...prev, [questionId]: option }))
   }
 
-  async function handleAutoSubmit() {
-    alert('Time is up! Submitting your answers automatically.')
-    await handleSubmit()
-  }
+  const handleSubmit = useCallback(async (isAutoSubmit = false) => {
+    if (hasSubmittedRef.current || submitted || submitting) return
 
-  async function handleSubmit() {
-    if (submitted || submitting) return
+    const currentAnswers = userAnswersRef.current
+    const totalQ = questions?.length || 0
+    const unansweredCount = totalQ - Object.keys(currentAnswers).length
+
+    // Skip confirm dialog on auto-submit
+    if (!isAutoSubmit && unansweredCount > 0) {
+      const confirmSubmit = window.confirm(
+        `You still have ${unansweredCount} unanswered question(s). Are you sure you want to submit?`
+      )
+      if (!confirmSubmit) return
+    }
+
+    if (!currentUser) {
+      alert('Please sign in to submit and have your quiz graded.')
+      return
+    }
+
+    hasSubmittedRef.current = true
     setSubmitting(true)
+    setSubmitError(null)
 
     try {
-      if (!currentUser) {
-        alert('Please sign in to submit and have your quiz graded.')
-        return
-      }
-
-      // Freeze current selections before sending
-      const answersToSubmit = { ...userAnswers }
+      const answersToSubmit = { ...currentAnswers }
 
       const { data, error } = await supabase.rpc('submit_quiz_attempt', {
         p_quiz_id: quizId,
@@ -277,22 +300,27 @@ export default function QuizView() {
 
       if (error) throw error
 
-      // Supabase RPC returns array [{ score, total_questions, percentage }]
       const result = Array.isArray(data) ? data[0] : data
 
-      setUserAnswers(answersToSubmit) // Lock answers in state for immediate review rendering
+      setUserAnswers(answersToSubmit)
       setScore(result?.score ?? 0)
       setSubmitted(true)
       setShowGrid(false)
 
       await loadAnswerKey(quizId)
-      await computeRank(quizId, result?.score ?? 0, result?.total_questions ?? questions.length)
+      await computeRank(quizId, result?.score ?? 0, result?.total_questions ?? totalQ)
     } catch (err) {
-      alert('Submission failed: ' + err.message)
+      console.error('Submission error:', err)
+      hasSubmittedRef.current = false
+      setSubmitError(
+        isAutoSubmit
+          ? 'Time expired, but automatic submission failed due to network issues. Tap retry below.'
+          : 'Submission failed: ' + (err.message || 'Please check your connection and try again.')
+      )
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [quizId, currentUser, questions, submitted, submitting])
 
   async function loadAnswerKey(quizId) {
     try {
@@ -758,6 +786,18 @@ export default function QuizView() {
             </div>
           </div>
 
+          {submitError && (
+            <div className="mb-4 rounded-card bg-vital/10 p-3.5 border border-vital/30 text-vitalDark text-xs font-mono flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <span>⚠️ {submitError}</span>
+              <button
+                onClick={() => handleSubmit(true)}
+                className="px-3 py-1 bg-vital text-white rounded font-bold hover:bg-vitalDark transition shrink-0"
+              >
+                Retry Submission
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between pt-4 border-t border-paperDim mt-6">
             <button
               onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
@@ -776,7 +816,7 @@ export default function QuizView() {
               </button>
             ) : (
               <button
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
                 disabled={submitting}
                 className="px-5 py-2 text-xs font-mono font-bold bg-vital text-white rounded-card hover:bg-vitalDark transition shadow-sm disabled:opacity-50"
               >
