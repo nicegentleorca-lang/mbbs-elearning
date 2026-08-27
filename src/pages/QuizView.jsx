@@ -31,6 +31,31 @@ function shuffleArray(array) {
   return shuffled
 }
 
+// Like shuffleArray, but guarantees every item moves to a different position
+// than it started in (no item stays "in place"). Falls back safely for
+// arrays too short to have a valid derangement (length 0 or 1).
+function derangeArray(array) {
+  if (!Array.isArray(array) || array.length <= 1) return [...(array || [])]
+  let shuffled = shuffleArray(array)
+  let attempts = 0
+  while (shuffled.some((item, i) => item === array[i]) && attempts < 50) {
+    shuffled = shuffleArray(array)
+    attempts++
+  }
+  return shuffled
+}
+
+// Universal helper to randomize question sequence and MCQ options in one pass
+function prepareShuffledQuiz(questionsList) {
+  return shuffleArray(questionsList).map(q => {
+    const rawOpts = parseOptionsArray(q.options)
+    return {
+      ...q,
+      options: q.question_type === 'mcq' ? derangeArray(rawOpts) : rawOpts
+    }
+  })
+}
+
 const normalize = (val) => String(getOptionText(val) ?? '').trim().toLowerCase()
 
 function getUserChoice(userAnswers, question, index) {
@@ -262,13 +287,10 @@ export default function QuizView() {
 
       if (questErr) throw questErr
 
-      const sanitizedQuestions = (questData || []).map(q => {
-        const parsedOptions = parseOptionsArray(q.options)
-        return {
-          ...q,
-          options: q.question_type === 'mcq' ? shuffleArray(parsedOptions) : parsedOptions
-        }
-      })
+      const sanitizedQuestions = (questData || []).map(q => ({
+        ...q,
+        options: parseOptionsArray(q.options)
+      }))
 
       setQuestions(sanitizedQuestions)
 
@@ -330,10 +352,7 @@ export default function QuizView() {
   function handleStartFresh() {
     hasSubmittedRef.current = false
     setSubmitError(null)
-    setQuestions(prev => shuffleArray(prev).map(q => ({
-      ...q,
-      options: q.question_type === 'mcq' ? shuffleArray(q.options) : q.options
-    })))
+    setQuestions(prev => prepareShuffledQuiz(prev))
     setUserAnswers({})
     setCurrentIndex(0)
     setTimeLeft((quiz?.time_limit_minutes || 10) * 60)
