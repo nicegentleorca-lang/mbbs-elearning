@@ -17,11 +17,17 @@ function getUserChoice(userAnswers, question, index) {
   if (!userAnswers) return null
 
   let answers = userAnswers
+  // Recursively unwrap stringified JSON
   while (typeof answers === 'string') {
     try { answers = JSON.parse(answers) } catch (e) { break }
   }
 
   if (!answers || typeof answers !== 'object') return null
+
+  // Unwrap nested payload wrapper if present
+  if (answers.answers && typeof answers.answers === 'object') {
+    answers = answers.answers
+  }
 
   const qId = question?.id ? String(question.id).trim().toLowerCase() : null
   const qSortOrder = question?.sort_order !== undefined && question?.sort_order !== null ? String(question.sort_order) : null
@@ -81,6 +87,7 @@ function getUserChoice(userAnswers, question, index) {
 
   return choiceStr
 }
+
 
 export default function QuizView() {
   const { quizId } = useParams()
@@ -238,18 +245,26 @@ export default function QuizView() {
         return
       }
 
+      // Freeze current selections before sending
+      const answersToSubmit = { ...userAnswers }
+
       const { data, error } = await supabase.rpc('submit_quiz_attempt', {
         p_quiz_id: quizId,
-        p_answers: userAnswers
+        p_answers: answersToSubmit
       })
 
       if (error) throw error
 
-      setScore(data.score)
+      // Supabase RPC returns array [{ score, total_questions, percentage }]
+      const result = Array.isArray(data) ? data[0] : data
+
+      setUserAnswers(answersToSubmit) // Lock answers in state for immediate review rendering
+      setScore(result?.score ?? 0)
       setSubmitted(true)
       setShowGrid(false)
+
       await loadAnswerKey(quizId)
-      await computeRank(quizId, data.score, data.total_questions)
+      await computeRank(quizId, result?.score ?? 0, result?.total_questions ?? questions.length)
     } catch (err) {
       alert('Submission failed: ' + err.message)
     } finally {
