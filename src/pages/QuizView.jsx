@@ -262,10 +262,13 @@ export default function QuizView() {
 
       if (questErr) throw questErr
 
-      const sanitizedQuestions = (questData || []).map(q => ({
-        ...q,
-        options: parseOptionsArray(q.options)
-      }))
+      const sanitizedQuestions = (questData || []).map(q => {
+        const parsedOptions = parseOptionsArray(q.options)
+        return {
+          ...q,
+          options: q.question_type === 'mcq' ? shuffleArray(parsedOptions) : parsedOptions
+        }
+      })
 
       setQuestions(sanitizedQuestions)
 
@@ -327,7 +330,10 @@ export default function QuizView() {
   function handleStartFresh() {
     hasSubmittedRef.current = false
     setSubmitError(null)
-    setQuestions(prev => shuffleArray(prev))
+    setQuestions(prev => shuffleArray(prev).map(q => ({
+      ...q,
+      options: q.question_type === 'mcq' ? shuffleArray(q.options) : q.options
+    })))
     setUserAnswers({})
     setCurrentIndex(0)
     setTimeLeft((quiz?.time_limit_minutes || 10) * 60)
