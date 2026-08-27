@@ -17,22 +17,22 @@ function getUserChoice(userAnswers, question, index) {
   if (!userAnswers) return null
 
   let answers = userAnswers
-  // Recursively unwrap stringified JSON
   while (typeof answers === 'string') {
     try { answers = JSON.parse(answers) } catch (e) { break }
   }
 
   if (!answers || typeof answers !== 'object') return null
 
-  // Unwrap nested payload wrapper if present
   if (answers.answers && typeof answers.answers === 'object') {
     answers = answers.answers
   }
 
+  const options = question?.options || []
+  if (!options.length) return null
+
   const qId = question?.id ? String(question.id).trim().toLowerCase() : null
   const qSortOrder = question?.sort_order !== undefined && question?.sort_order !== null ? String(question.sort_order) : null
   const idxStr = String(index)
-  const options = question?.options || []
 
   const extractRaw = (val) => {
     if (val === undefined || val === null) return null
@@ -54,6 +54,7 @@ function getUserChoice(userAnswers, question, index) {
     if (found) rawChoice = extractRaw(found)
     else if (answers[index] !== undefined) rawChoice = extractRaw(answers[index])
   } else {
+    // 1. Direct key match (UUID, sort order, or index key)
     for (const [k, rawVal] of Object.entries(answers)) {
       const keyStr = String(k).trim().toLowerCase()
       const val = extractRaw(rawVal)
@@ -69,6 +70,27 @@ function getUserChoice(userAnswers, question, index) {
       ) {
         rawChoice = val
         break
+      }
+    }
+
+    // 2. Positional fallback (if question UUIDs were re-seeded in Supabase)
+    if (rawChoice === null || rawChoice === undefined) {
+      const values = Object.values(answers).map(extractRaw).filter(v => v !== null)
+      if (values[index] !== undefined) {
+        rawChoice = values[index]
+      }
+    }
+
+    // 3. Option text match fallback
+    if (rawChoice === null || rawChoice === undefined) {
+      const values = Object.values(answers).map(extractRaw).filter(v => v !== null)
+      for (const val of values) {
+        const valStr = String(val).trim()
+        const foundOpt = options.find(o => normalize(o) === normalize(valStr))
+        if (foundOpt) {
+          rawChoice = foundOpt
+          break
+        }
       }
     }
   }
