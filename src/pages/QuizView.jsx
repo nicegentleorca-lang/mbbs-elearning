@@ -2,7 +2,27 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+// Helper to extract clean string text from string, number, or object options
+const getOptionText = (opt) => {
+  if (opt === null || opt === undefined) return ''
+  if (typeof opt === 'object') {
+    return opt.text ?? opt.choice ?? opt.selectedOption ?? opt.value ?? opt.label ?? JSON.stringify(opt)
+  }
+  return String(opt)
+}
+
+// Helper to safely convert raw options into a JS Array
+const parseOptionsArray = (rawOptions) => {
+  if (!rawOptions) return []
+  let opts = rawOptions
+  if (typeof opts === 'string') {
+    try { opts = JSON.parse(opts) } catch (e) { return [] }
+  }
+  return Array.isArray(opts) ? opts : []
+}
+
 function shuffleArray(array) {
+  if (!Array.isArray(array)) return []
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -11,7 +31,7 @@ function shuffleArray(array) {
   return shuffled
 }
 
-const normalize = (val) => String(val ?? '').trim().toLowerCase()
+const normalize = (val) => String(getOptionText(val) ?? '').trim().toLowerCase()
 
 function getUserChoice(userAnswers, question, index) {
   if (!userAnswers) return null
@@ -27,7 +47,7 @@ function getUserChoice(userAnswers, question, index) {
     answers = answers.answers
   }
 
-  const options = question?.options || []
+  const options = parseOptionsArray(question?.options)
   if (!options.length) return null
 
   const qId = question?.id ? String(question.id).trim().toLowerCase() : null
@@ -54,7 +74,6 @@ function getUserChoice(userAnswers, question, index) {
     if (found) rawChoice = extractRaw(found)
     else if (answers[index] !== undefined) rawChoice = extractRaw(answers[index])
   } else {
-    // 1. Direct key match (UUID, sort order, or index key)
     for (const [k, rawVal] of Object.entries(answers)) {
       const keyStr = String(k).trim().toLowerCase()
       const val = extractRaw(rawVal)
@@ -73,7 +92,6 @@ function getUserChoice(userAnswers, question, index) {
       }
     }
 
-    // 2. Positional fallback (if question UUIDs were re-seeded in Supabase)
     if (rawChoice === null || rawChoice === undefined) {
       const values = Object.values(answers).map(extractRaw).filter(v => v !== null)
       if (values[index] !== undefined) {
@@ -81,7 +99,6 @@ function getUserChoice(userAnswers, question, index) {
       }
     }
 
-    // 3. Option text match fallback
     if (rawChoice === null || rawChoice === undefined) {
       const values = Object.values(answers).map(extractRaw).filter(v => v !== null)
       for (const val of values) {
@@ -97,19 +114,18 @@ function getUserChoice(userAnswers, question, index) {
 
   if (rawChoice === null || rawChoice === undefined) return null
 
-  const choiceStr = String(rawChoice).trim()
+  const choiceStr = String(extractRaw(rawChoice) ?? rawChoice).trim()
   const matchedOpt = options.find(o => normalize(o) === normalize(choiceStr))
-  if (matchedOpt) return matchedOpt
+  if (matchedOpt) return getOptionText(matchedOpt)
 
   const num = Number(choiceStr)
   if (!isNaN(num)) {
-    if (options[num] !== undefined) return options[num]
-    if (options[num - 1] !== undefined) return options[num - 1]
+    if (options[num] !== undefined) return getOptionText(options[num])
+    if (options[num - 1] !== undefined) return getOptionText(options[num - 1])
   }
 
   return choiceStr
 }
-
 
 export default function QuizView() {
   const { quizId } = useParams()
@@ -130,12 +146,10 @@ export default function QuizView() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Double-submit ref lock & error banner state (Matched to your schema)
   const hasSubmittedRef = useRef(false)
   const userAnswersRef = useRef(userAnswers)
   const [submitError, setSubmitError] = useState(null)
 
-  // Synchronize choice ref on state update
   useEffect(() => {
     userAnswersRef.current = userAnswers
   }, [userAnswers])
@@ -151,121 +165,6 @@ export default function QuizView() {
     loadQuizData()
   }, [quizId, targetAttemptId])
 
-  useEffect(() => {
-    if (!quizStarted || submitted || timeLeft <= 0) return
-
-    // Calculate fixed end timestamp from current remaining time
-    const endTime = Date.now() + timeLeft * 1000
-
-    const timer = setInterval(() => {
-      const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000))
-      setTimeLeft(remaining)
-
-      if (remaining <= 0) {
-        clearInterval(timer)
-        handleSubmit(true) // Triggers immediate submission with zero prompts
-      }
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [quizStarted, submitted, handleSubmit])
-
-  async function loadQuizData() {
-    setLoading(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUser(user)
-
-      const { data: qData, error: qErr } = await supabase
-        .from('quizzes')
-        .select('*')
-        .eq('id', quizId)
-        .single()
-
-      if (qErr) throw qErr
-      setQuiz(qData)
-      setTimeLeft(qData.time_limit_minutes * 60)
-
-      const { data: questData, error: questErr } = await supabase
-        .from('questions')
-        .select('id, quiz_id, question_type, prompt, options, explanation, sort_order')
-        .eq('quiz_id', quizId)
-        .order('sort_order', { ascending: true })
-
-      if (questErr) throw questErr
-      setQuestions(questData || [])
-
-      if (user) {
-        const startOfToday = new Date()
-        startOfToday.setHours(0, 0, 0, 0)
-
-        const { data: todayAttempts } = await supabase
-          .from('quiz_attempts')
-          .select('total_questions')
-          .eq('user_id', user.id)
-          .gte('created_at', startOfToday.toISOString())
-
-        const totalToday = todayAttempts?.reduce((sum, a) => sum + (a.total_questions || 0), 0) || 0
-        if (totalToday >= 300) {
-          setDailyLimitReached(true)
-        }
-
-        let attemptQuery = supabase
-          .from('quiz_attempts')
-          .select('*')
-          .eq('quiz_id', quizId)
-          .eq('user_id', user.id)
-
-        if (targetAttemptId) {
-          attemptQuery = attemptQuery.eq('id', targetAttemptId)
-        } else {
-          attemptQuery = attemptQuery.order('created_at', { ascending: false }).limit(5)
-        }
-
-        const { data: attempts } = await attemptQuery
-        const attemptData = (attempts || []).find(a => a.answers !== null) || attempts?.[0]
-
-        if (attemptData) {
-          setPastAttempt(attemptData)
-          setScore(attemptData.score)
-          if (attemptData.answers) {
-            let parsedAnswers = attemptData.answers
-            if (typeof parsedAnswers === 'string') {
-              try { parsedAnswers = JSON.parse(parsedAnswers) } catch (e) {}
-            }
-            setUserAnswers(parsedAnswers || {})
-          }
-          await loadAnswerKey(quizId)
-          await computeRank(quizId, attemptData.score, questData.length)
-
-          if (targetAttemptId) {
-            setSubmitted(true)
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error loading quiz:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function handleStartFresh() {
-    hasSubmittedRef.current = false
-    setSubmitError(null)
-    setQuestions(prev => shuffleArray(prev))
-    setUserAnswers({})
-    setCurrentIndex(0)
-    setTimeLeft((quiz?.time_limit_minutes || 10) * 60)
-    setSubmitted(false)
-    setQuizStarted(true)
-  }
-
-  function handleSelectAnswer(questionId, option) {
-    if (submitted) return
-    setUserAnswers(prev => ({ ...prev, [questionId]: option }))
-  }
-
   const handleSubmit = useCallback(async (isAutoSubmit = false) => {
     if (hasSubmittedRef.current || submitted || submitting) return
 
@@ -273,7 +172,6 @@ export default function QuizView() {
     const totalQ = questions?.length || 0
     const unansweredCount = totalQ - Object.keys(currentAnswers).length
 
-    // Skip confirm dialog on auto-submit
     if (!isAutoSubmit && unansweredCount > 0) {
       const confirmSubmit = window.confirm(
         `You still have ${unansweredCount} unanswered question(s). Are you sure you want to submit?`
@@ -322,6 +220,126 @@ export default function QuizView() {
     }
   }, [quizId, currentUser, questions, submitted, submitting])
 
+  useEffect(() => {
+    if (!quizStarted || submitted || timeLeft <= 0) return
+
+    const endTime = Date.now() + timeLeft * 1000
+
+    const timer = setInterval(() => {
+      const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000))
+      setTimeLeft(remaining)
+
+      if (remaining <= 0) {
+        clearInterval(timer)
+        handleSubmit(true)
+      }
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [quizStarted, submitted, handleSubmit])
+
+  async function loadQuizData() {
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+
+      const { data: qData, error: qErr } = await supabase
+        .from('quizzes')
+        .select('*')
+        .eq('id', quizId)
+        .single()
+
+      if (qErr) throw qErr
+      setQuiz(qData)
+      setTimeLeft((qData.time_limit_minutes || 10) * 60)
+
+      const { data: questData, error: questErr } = await supabase
+        .from('questions')
+        .select('id, quiz_id, question_type, prompt, options, explanation, sort_order')
+        .eq('quiz_id', quizId)
+        .order('sort_order', { ascending: true })
+
+      if (questErr) throw questErr
+
+      const sanitizedQuestions = (questData || []).map(q => ({
+        ...q,
+        options: parseOptionsArray(q.options)
+      }))
+
+      setQuestions(sanitizedQuestions)
+
+      if (user) {
+        const startOfToday = new Date()
+        startOfToday.setHours(0, 0, 0, 0)
+
+        const { data: todayAttempts } = await supabase
+          .from('quiz_attempts')
+          .select('total_questions')
+          .eq('user_id', user.id)
+          .gte('created_at', startOfToday.toISOString())
+
+        const totalToday = todayAttempts?.reduce((sum, a) => sum + (a.total_questions || 0), 0) || 0
+        if (totalToday >= 300) {
+          setDailyLimitReached(true)
+        }
+
+        let attemptQuery = supabase
+          .from('quiz_attempts')
+          .select('*')
+          .eq('quiz_id', quizId)
+          .eq('user_id', user.id)
+
+        if (targetAttemptId) {
+          attemptQuery = attemptQuery.eq('id', targetAttemptId)
+        } else {
+          attemptQuery = attemptQuery.order('created_at', { ascending: false }).limit(5)
+        }
+
+        const { data: attempts } = await attemptQuery
+        const attemptData = (attempts || []).find(a => a.answers !== null) || attempts?.[0]
+
+        if (attemptData) {
+          setPastAttempt(attemptData)
+          setScore(attemptData.score ?? 0)
+          if (attemptData.answers) {
+            let parsedAnswers = attemptData.answers
+            if (typeof parsedAnswers === 'string') {
+              try { parsedAnswers = JSON.parse(parsedAnswers) } catch (e) {}
+            }
+            setUserAnswers(parsedAnswers || {})
+          }
+          await loadAnswerKey(quizId)
+          await computeRank(quizId, attemptData.score ?? 0, sanitizedQuestions.length)
+
+          if (targetAttemptId) {
+            setSubmitted(true)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading quiz:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleStartFresh() {
+    hasSubmittedRef.current = false
+    setSubmitError(null)
+    setQuestions(prev => shuffleArray(prev))
+    setUserAnswers({})
+    setCurrentIndex(0)
+    setTimeLeft((quiz?.time_limit_minutes || 10) * 60)
+    setSubmitted(false)
+    setQuizStarted(true)
+  }
+
+  function handleSelectAnswer(questionId, optionText) {
+    if (submitted) return
+    setUserAnswers(prev => ({ ...prev, [questionId]: optionText }))
+  }
+
   async function loadAnswerKey(quizId) {
     try {
       const { data, error } = await supabase.rpc('get_quiz_answers_for_review', {
@@ -349,7 +367,7 @@ export default function QuizView() {
 
       if (error) throw error
 
-      setRankBadge({ text: data.text, desc: data.desc })
+      setRankBadge({ text: data?.text || 'Ranked', desc: data?.desc || '' })
     } catch (err) {
       console.error('Error computing rank:', err)
     }
@@ -457,13 +475,13 @@ export default function QuizView() {
 
     ctx.fillStyle = '#38BDF8'
     ctx.font = 'bold 60px sans-serif'
-    ctx.fillText(rankBadge.text, 70, 248)
+    ctx.fillText(rankBadge.text || 'Ranked', 70, 248)
 
     ctx.fillStyle = '#F1F5F9'
     ctx.font = '18px sans-serif'
-    ctx.fillText(rankBadge.desc, 70, 296)
+    ctx.fillText(rankBadge.desc || '', 70, 296)
 
-    const scorePct = Math.round((score / questions.length) * 100)
+    const scorePct = questions.length ? Math.round((score / questions.length) * 100) : 0
     ctx.fillStyle = '#34D399'
     ctx.font = 'bold 22px monospace'
     ctx.fillText(`Score: ${score} / ${questions.length} (${scorePct}%)`, 70, 358)
@@ -590,7 +608,7 @@ export default function QuizView() {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-display font-bold">{quiz?.title} Results</h1>
-          
+
           <div className="flex justify-center items-center gap-4 sm:gap-6 my-4">
             <div className="bg-slate-800/80 border border-slate-700/60 p-4 rounded-card min-w-[120px]">
               <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">YOUR SCORE</p>
@@ -651,8 +669,9 @@ export default function QuizView() {
 
                 <div className="space-y-2 mb-4">
                   {(q.options || []).map((opt, oIdx) => {
-                    const isSelected = hasChosen && normalize(userChoice) === normalize(opt)
-                    const isCorrectOpt = correctOpt !== undefined && normalize(correctOpt) === normalize(opt)
+                    const optText = getOptionText(opt)
+                    const isSelected = hasChosen && normalize(userChoice) === normalize(optText)
+                    const isCorrectOpt = correctOpt !== undefined && normalize(correctOpt) === normalize(optText)
 
                     let style = "border-paperDim bg-white text-ink"
                     let badgeText = null
@@ -670,7 +689,7 @@ export default function QuizView() {
 
                     return (
                       <div key={oIdx} className={`p-3 rounded-card text-xs sm:text-sm border flex items-center justify-between ${style}`}>
-                        <span>{opt}</span>
+                        <span>{optText}</span>
                         {badgeText && (
                           <span className="text-[10px] font-mono font-bold uppercase tracking-wider ml-2 shrink-0">
                             {badgeText}
@@ -767,19 +786,20 @@ export default function QuizView() {
 
             <div className="space-y-2.5">
               {(currentQ.options || []).map((opt, oIdx) => {
-                const isSelected = normalize(userAnswers[currentQ.id]) === normalize(opt)
+                const optText = getOptionText(opt)
+                const isSelected = normalize(userAnswers[currentQ.id]) === normalize(optText)
                 return (
                   <button
                     key={oIdx}
                     type="button"
-                    onClick={() => handleSelectAnswer(currentQ.id, opt)}
+                    onClick={() => handleSelectAnswer(currentQ.id, optText)}
                     className={`w-full text-left p-3.5 rounded-card text-xs md:text-sm border transition ${
                       isSelected
                         ? 'border-venous bg-venous/10 font-semibold text-ink shadow-sm'
                         : 'border-paperDim hover:bg-paper text-ink'
                     }`}
                   >
-                    {opt}
+                    {optText}
                   </button>
                 )
               })}
@@ -828,4 +848,5 @@ export default function QuizView() {
       )}
     </div>
   )
-}
+          }
+ 
