@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-// Helper function to shuffle questions (Fisher-Yates Shuffle)
 function shuffleArray(array) {
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -12,62 +11,76 @@ function shuffleArray(array) {
   return shuffled
 }
 
-// Robust helper to locate user's chosen option regardless of key structure (ID, index, sort_order, array)
+const normalize = (val) => String(val ?? '').trim().toLowerCase()
+
 function getUserChoice(userAnswers, question, index) {
   if (!userAnswers) return null
 
   let answers = userAnswers
-  if (typeof answers === 'string') {
-    try { answers = JSON.parse(answers) } catch (e) {}
-    if (typeof answers === 'string') {
-      try { answers = JSON.parse(answers) } catch (e) {}
-    }
+  while (typeof answers === 'string') {
+    try { answers = JSON.parse(answers) } catch (e) { break }
   }
 
   if (!answers || typeof answers !== 'object') return null
 
-  const qId = question?.id
-  const qSortOrder = question?.sort_order
+  const qId = question?.id ? String(question.id).trim().toLowerCase() : null
+  const qSortOrder = question?.sort_order !== undefined && question?.sort_order !== null ? String(question.sort_order) : null
+  const idxStr = String(index)
+  const options = question?.options || []
 
-  // 1. Array of items
+  const extractRaw = (val) => {
+    if (val === undefined || val === null) return null
+    if (typeof val === 'object' && !Array.isArray(val)) {
+      return val.answer ?? val.choice ?? val.selectedOption ?? val.selected ?? val.value ?? val.text ?? null
+    }
+    return val
+  }
+
+  let rawChoice = null
+
   if (Array.isArray(answers)) {
-    const foundObj = answers.find(item =>
-      item && typeof item === 'object' && (
-        String(item.question_id || item.questionId || item.id) === String(qId) ||
-        String(item.sort_order || item.sortOrder) === String(qSortOrder)
-      )
-    )
-    if (foundObj) return foundObj.answer || foundObj.choice || foundObj.selectedOption || null
-    if (answers[index] !== undefined && typeof answers[index] === 'string') {
-      return answers[index]
+    const found = answers.find(item => {
+      if (!item || typeof item !== 'object') return false
+      const itemQId = String(item.question_id || item.questionId || item.id || '').trim().toLowerCase()
+      const itemSort = String(item.sort_order || item.sortOrder || '')
+      return (qId && itemQId === qId) || (qSortOrder && itemSort === qSortOrder)
+    })
+    if (found) rawChoice = extractRaw(found)
+    else if (answers[index] !== undefined) rawChoice = extractRaw(answers[index])
+  } else {
+    for (const [k, rawVal] of Object.entries(answers)) {
+      const keyStr = String(k).trim().toLowerCase()
+      const val = extractRaw(rawVal)
+      if (val === null) continue
+
+      if (
+        (qId && keyStr === qId) ||
+        (qSortOrder && keyStr === qSortOrder) ||
+        keyStr === idxStr ||
+        keyStr === `q_${idxStr}` ||
+        keyStr === `question_${idxStr}` ||
+        keyStr === String(index + 1)
+      ) {
+        rawChoice = val
+        break
+      }
     }
   }
 
-  // 2. Direct Object Key by Question ID
-  if (qId !== undefined && qId !== null) {
-    if (answers[qId] !== undefined) return answers[qId]
-    if (answers[String(qId)] !== undefined) return answers[String(qId)]
+  if (rawChoice === null || rawChoice === undefined) return null
+
+  const choiceStr = String(rawChoice).trim()
+  const matchedOpt = options.find(o => normalize(o) === normalize(choiceStr))
+  if (matchedOpt) return matchedOpt
+
+  const num = Number(choiceStr)
+  if (!isNaN(num)) {
+    if (options[num] !== undefined) return options[num]
+    if (options[num - 1] !== undefined) return options[num - 1]
   }
 
-  // 3. Fallback by sort_order or 0-based index
-  if (qSortOrder !== undefined && qSortOrder !== null) {
-    if (answers[qSortOrder] !== undefined) return answers[qSortOrder]
-    if (answers[String(qSortOrder)] !== undefined) return answers[String(qSortOrder)]
-  }
-
-  if (answers[index] !== undefined) return answers[index]
-  if (answers[String(index)] !== undefined) return answers[String(index)]
-
-  // 4. Fuzzy Key Match
-  if (qId !== undefined && qId !== null) {
-    const key = Object.keys(answers).find(k => String(k).trim() === String(qId).trim())
-    if (key && answers[key] !== undefined) return answers[key]
-  }
-
-  return null
+  return choiceStr
 }
-
-const normalize = (val) => String(val ?? '').trim().toLowerCase()
 
 export default function QuizView() {
   const { quizId } = useParams()
@@ -165,11 +178,11 @@ export default function QuizView() {
         if (targetAttemptId) {
           attemptQuery = attemptQuery.eq('id', targetAttemptId)
         } else {
-          attemptQuery = attemptQuery.order('created_at', { ascending: false }).limit(1)
+          attemptQuery = attemptQuery.order('created_at', { ascending: false }).limit(5)
         }
 
         const { data: attempts } = await attemptQuery
-        const attemptData = attempts?.[0]
+        const attemptData = (attempts || []).find(a => a.answers !== null) || attempts?.[0]
 
         if (attemptData) {
           setPastAttempt(attemptData)
