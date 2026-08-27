@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Preclinical Notes',
-        short_name: 'Preclinical',
+        name: 'Deltoid',
+        short_name: 'Deltoid',
         description: 'Anatomy, Biochemistry & Physiology notes and quizzes for MBBS preclinical students.',
         theme_color: '#1B2A4A',
         background_color: '#EEF2F1',
