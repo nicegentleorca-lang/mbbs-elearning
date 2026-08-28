@@ -538,7 +538,8 @@ export default function AdminQuizEditor() {
                       </label>
                     ))}
                   </div>
-         )}
+                  </div>
+              )}
 
               {q.question_type === 'reason_assertion' && (
                 <div>
@@ -592,4 +593,4 @@ export default function AdminQuizEditor() {
       </button>
     </form>
   )
-                  }
+}
