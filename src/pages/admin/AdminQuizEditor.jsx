@@ -34,6 +34,7 @@ export default function AdminQuizEditor() {
   const [quizTitle, setQuizTitle] = useState('')
   const [quizDescription, setQuizDescription] = useState('')
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(10)
+  const [isPremium, setIsPremium] = useState(true)
 
   const [activeTab, setActiveTab] = useState('builder') // 'builder' | 'bulk'
   const [bulkInput, setBulkInput] = useState('')
@@ -79,6 +80,7 @@ export default function AdminQuizEditor() {
         setQuizTitle(quiz.title || '')
         setQuizDescription(quiz.description || '')
         setTimeLimitMinutes(quiz.time_limit_minutes || 10)
+        setIsPremium(quiz.is_premium !== false)
 
         const { data: qList, error: qErr } = await supabase
           .from('questions')
@@ -237,7 +239,8 @@ export default function AdminQuizEditor() {
             topic_id: selectedTopic,
             title: quizTitle,
             description: quizDescription,
-            time_limit_minutes: Number(timeLimitMinutes) || 10
+            time_limit_minutes: Number(timeLimitMinutes) || 10,
+            is_premium: isPremium
           })
           .eq('id', quizId)
 
@@ -256,7 +259,8 @@ export default function AdminQuizEditor() {
             topic_id: selectedTopic,
             title: quizTitle,
             description: quizDescription,
-            time_limit_minutes: Number(timeLimitMinutes) || 10
+            time_limit_minutes: Number(timeLimitMinutes) || 10,
+            is_premium: isPremium
           }])
           .select()
           .single()
@@ -376,6 +380,20 @@ export default function AdminQuizEditor() {
               className="w-full p-2.5 border border-paperDim rounded bg-paper text-ink font-mono text-sm"
             />
           </div>
+        </div>
+
+        {/* Lock / Premium Toggle */}
+        <div className="pt-2 border-t border-paperDim flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="is_premium"
+            checked={isPremium}
+            onChange={e => setIsPremium(e.target.checked)}
+            className="w-4 h-4 rounded border-paperDim text-venous focus:ring-venous cursor-pointer"
+          />
+          <label htmlFor="is_premium" className="text-xs font-mono uppercase font-bold text-ink cursor-pointer select-none flex items-center gap-1.5">
+            <span>🔒 Require Subject Access (Locked Quiz)</span>
+          </label>
         </div>
       </div>
 
@@ -520,8 +538,7 @@ export default function AdminQuizEditor() {
                       </label>
                     ))}
                   </div>
-                </div>
-              )}
+         )}
 
               {q.question_type === 'reason_assertion' && (
                 <div>
@@ -575,4 +592,4 @@ export default function AdminQuizEditor() {
       </button>
     </form>
   )
-}
+      }
