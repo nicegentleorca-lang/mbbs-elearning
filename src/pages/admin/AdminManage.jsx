@@ -73,6 +73,29 @@ export default function AdminManage() {
     }
   }
 
+  async function toggleQuizLock(quiz, topicId) {
+    const isCurrentlyPremium = quiz.is_premium !== false
+    const newStatus = !isCurrentlyPremium
+
+    try {
+      const { error } = await supabase
+        .from('quizzes')
+        .update({ is_premium: newStatus })
+        .eq('id', quiz.id)
+
+      if (error) throw error
+
+      setQuizzesByTopic(prev => ({
+        ...prev,
+        [topicId]: (prev[topicId] || []).map(q => 
+          q.id === quiz.id ? { ...q, is_premium: newStatus } : q
+        )
+      }))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   async function handleDeleteSubject(subject) {
     if (!window.confirm(`Delete "${subject.name}"? This also deletes all its topics and lessons. This cannot be undone.`)) return
     try {
@@ -187,15 +210,29 @@ export default function AdminManage() {
                         {/* Quizzes List */}
                         <div className="pt-2 border-t border-paperDim/50">
                           <span className="text-[10px] font-mono text-slate uppercase font-bold block mb-1">Quizzes</span>
-                          {(quizzesByTopic[topic.id] || []).map(quiz => (
-                            <div key={quiz.id} className="flex items-center justify-between gap-3 py-1">
-                              <span className="text-sm flex-1 font-medium">
-                                📝 {quiz.title}
-                              </span>
-                              <Link to={`/admin/quizzes/${quiz.id}/edit`} className="btn-secondary text-xs py-1 px-2">Edit</Link>
-                              <button onClick={() => handleDeleteQuiz(quiz, topic.id)} className="text-vital text-xs hover:underline">Delete</button>
-                            </div>
-                          ))}
+                          {(quizzesByTopic[topic.id] || []).map(quiz => {
+                            const isLocked = quiz.is_premium !== false
+                            return (
+                              <div key={quiz.id} className="flex items-center justify-between gap-2 py-1">
+                                <span className="text-sm flex-1 font-medium truncate">
+                                  📝 {quiz.title}
+                                </span>
+                                <button
+                                  onClick={() => toggleQuizLock(quiz, topic.id)}
+                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border transition ${
+                                    isLocked 
+                                      ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' 
+                                      : 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                                  }`}
+                                  title="Click to toggle lock status"
+                                >
+                                  {isLocked ? '🔒 Locked' : '🔓 Free'}
+                                </button>
+                                <Link to={`/admin/quizzes/${quiz.id}/edit`} className="btn-secondary text-xs py-1 px-2">Edit</Link>
+                                <button onClick={() => handleDeleteQuiz(quiz, topic.id)} className="text-vital text-xs hover:underline">Delete</button>
+                              </div>
+                            )
+                          })}
                           {(quizzesByTopic[topic.id] || []).length === 0 && (
                             <p className="text-slate text-xs">No quizzes yet.</p>
                           )}
@@ -217,4 +254,5 @@ export default function AdminManage() {
       </div>
     </div>
   )
-                                                               }
+        }
+                        
