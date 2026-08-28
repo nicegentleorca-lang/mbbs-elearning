@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function LessonPage() {
   const { subjectSlug, topicSlug, lessonSlug } = useParams()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [subject, setSubject] = useState(null)
   const [topic, setTopic] = useState(null)
   const [lesson, setLesson] = useState(null)
@@ -20,7 +20,7 @@ export default function LessonPage() {
         const subj = await getSubjectBySlug(subjectSlug)
         const top = await getTopicBySlug(subj.id, topicSlug)
         const lsn = await getLessonBySlug(top.id, lessonSlug)
-        const has = user ? await hasPurchasedSubject(user.id, subj.id) : false
+        const has = await hasPurchasedSubject(user?.id, subj.id, isAdmin)
         if (cancelled) return
         setSubject(subj)
         setTopic(top)
@@ -35,7 +35,7 @@ export default function LessonPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [subjectSlug, topicSlug, lessonSlug, user])
+  }, [subjectSlug, topicSlug, lessonSlug, user, isAdmin])
 
   if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
   if (error) return <p className="text-vital">{error}</p>
