@@ -66,7 +66,8 @@ export async function getLessonBySlug(topicId, lessonSlug) {
 
 // ---- Purchases & Unlocks ----
 
-export async function hasPurchasedSubject(userId, subjectId) {
+export async function hasPurchasedSubject(userId, subjectId, isAdmin = false) {
+  if (isAdmin) return true
   if (!userId || !subjectId) return false
   const { data, error } = await supabase
     .from('purchases')
@@ -78,6 +79,7 @@ export async function hasPurchasedSubject(userId, subjectId) {
   if (error) throw error
   return Boolean(data)
 }
+
 
 export async function getUserPurchases(userId) {
   const { data, error } = await supabase
