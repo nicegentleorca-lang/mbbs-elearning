@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function SubjectPage() {
   const { subjectSlug } = useParams()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [subject, setSubject] = useState(null)
   const [topics, setTopics] = useState([])
   const [owned, setOwned] = useState(false)
@@ -21,7 +21,7 @@ export default function SubjectPage() {
         setSubject(subj)
         const [tps, has] = await Promise.all([
           getTopicsBySubject(subj.id),
-          user ? hasPurchasedSubject(user.id, subj.id) : Promise.resolve(false)
+          hasPurchasedSubject(user?.id, subj.id, isAdmin)
         ])
         if (cancelled) return
         setTopics(tps)
@@ -35,7 +35,7 @@ export default function SubjectPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [subjectSlug, user])
+  }, [subjectSlug, user, isAdmin])
 
   if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
   if (error) return <p className="text-vital">{error}</p>
@@ -70,4 +70,4 @@ export default function SubjectPage() {
       </div>
     </div>
   )
-                    }
+}
