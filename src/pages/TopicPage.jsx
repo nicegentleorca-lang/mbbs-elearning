@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getSubjectBySlug, getTopicBySlug, getLessonsByTopic } from '../lib/content'
+import { getSubjectBySlug, getTopicBySlug, getLessonsByTopic, hasPurchasedSubject } from '../lib/content'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function TopicPage() {
   const { subjectSlug, topicSlug } = useParams()
+  const { user, isAdmin } = useAuth()
   const [subject, setSubject] = useState(null)
   const [topic, setTopic] = useState(null)
   const [lessons, setLessons] = useState([])
   const [quizzes, setQuizzes] = useState([])
+  const [owned, setOwned] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -19,6 +22,7 @@ export default function TopicPage() {
         const subj = await getSubjectBySlug(subjectSlug)
         const top = await getTopicBySlug(subj.id, topicSlug)
         const lsns = await getLessonsByTopic(top.id)
+        const has = await hasPurchasedSubject(user?.id, subj.id, isAdmin)
 
         // Fetch quizzes connected to this topic
         const { data: quizData } = await supabase
@@ -31,6 +35,7 @@ export default function TopicPage() {
         setTopic(top)
         setLessons(lsns)
         setQuizzes(quizData || [])
+        setOwned(has)
       } catch (err) {
         if (!cancelled) setError('Could not load this topic.')
         console.error(err)
@@ -40,7 +45,7 @@ export default function TopicPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [subjectSlug, topicSlug])
+  }, [subjectSlug, topicSlug, user, isAdmin])
 
   if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
   if (error) return <p className="text-vital">{error}</p>
@@ -76,20 +81,37 @@ export default function TopicPage() {
       {quizzes.length > 0 && (
         <div className="space-y-3 pt-4 border-t border-paperDim">
           <h2 className="text-xs font-mono uppercase text-slate tracking-wider">Practice Quiz</h2>
-          {quizzes.map(quiz => (
-            <div key={quiz.id} className="index-card p-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-display text-lg font-semibold">{quiz.title}</h3>
-                <p className="text-xs text-slate">⏱ {quiz.time_limit_minutes} Mins</p>
+          {quizzes.map(quiz => {
+            const isPremium = quiz.is_premium !== false
+            const hasAccess = isAdmin || !isPremium || owned
+
+            return (
+              <div key={quiz.id} className="index-card p-4 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold">{quiz.title}</h3>
+                    {!hasAccess && <span className="text-xs">🔒</span>}
+                  </div>
+                  <p className="text-xs text-slate">⏱ {quiz.time_limit_minutes} Mins</p>
+                </div>
+                {hasAccess ? (
+                  <Link
+                    to={`/quiz/${quiz.id}`}
+                    className="btn-primary text-sm py-2 px-4"
+                  >
+                    Start Quiz
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/subjects/${subjectSlug}/unlock`}
+                    className="btn-primary text-sm py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    Unlock Quiz
+                  </Link>
+                )}
               </div>
-              <Link
-                to={`/quiz/${quiz.id}`}
-                className="btn-primary text-sm py-2 px-4"
-              >
-                Start Quiz
-              </Link>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
