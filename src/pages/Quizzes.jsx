@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { getUserPurchases } from '../lib/content'
 
 export default function Quizzes() {
+  const { user, isAdmin } = useAuth()
   const [quizzes, setQuizzes] = useState([])
   const [attempts, setAttempts] = useState({})
+  const [userPurchases, setUserPurchases] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [user])
 
   async function loadData() {
     setLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-
       const { data: qData, error: qErr } = await supabase
         .from('quizzes')
         .select(`
@@ -23,7 +25,9 @@ export default function Quizzes() {
           topics (
             id,
             name,
-            subjects ( id, name )
+            slug,
+            subject_id,
+            subjects ( id, name, slug )
           )
         `)
         .order('created_at', { ascending: false })
@@ -32,16 +36,20 @@ export default function Quizzes() {
       setQuizzes(qData || [])
 
       if (user) {
-        const { data: attData } = await supabase
-          .from('quiz_attempts')
-          .select('quiz_id, score, total_questions')
-          .eq('user_id', user.id)
+        const [attRes, purchases] = await Promise.all([
+          supabase
+            .from('quiz_attempts')
+            .select('quiz_id, score, total_questions')
+            .eq('user_id', user.id),
+          getUserPurchases(user.id)
+        ])
 
         const attemptMap = {}
-        attData?.forEach(a => {
+        attRes.data?.forEach(a => {
           attemptMap[a.quiz_id] = a
         })
         setAttempts(attemptMap)
+        setUserPurchases(purchases || [])
       }
     } catch (err) {
       console.error('Error fetching quizzes:', err)
@@ -74,22 +82,42 @@ export default function Quizzes() {
         <div className="grid gap-4 sm:grid-cols-2">
           {quizzes.map(quiz => {
             const attempt = attempts[quiz.id]
-            const subjectName = quiz.topics?.subjects?.name || 'General'
+            const subject = quiz.topics?.subjects
+            const subjectName = subject?.name || 'General'
+            const subjectSlug = subject?.slug
+            const subjectId = subject?.id || quiz.topics?.subject_id
             const topicName = quiz.topics?.name || 'Topic'
+
+            const isPremium = quiz.is_premium !== false
+            const hasAccess = isAdmin || !isPremium || (subjectId && userPurchases.includes(subjectId))
 
             return (
               <div key={quiz.id} className="index-card p-5 flex flex-col justify-between space-y-4 bg-white border border-paperDim rounded-card shadow-sm hover:border-venous/40 transition">
                 <div>
                   <div className="flex items-center justify-between text-xs font-mono text-slate mb-2">
                     <span className="uppercase text-venous font-bold">{subjectName}</span>
-                    <span className="font-medium">⏱ {quiz.time_limit_minutes} Mins</span>
+                    <div className="flex items-center gap-2">
+                      {!hasAccess && (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase">
+                          🔒 Locked
+                        </span>
+                      )}
+                      <span className="font-medium">⏱ {quiz.time_limit_minutes} Mins</span>
+                    </div>
                   </div>
                   <h2 className="font-display text-lg font-semibold text-ink leading-snug">{quiz.title}</h2>
                   <p className="text-xs text-slate mt-1 font-medium">{topicName}</p>
                 </div>
 
                 <div>
-                  {attempt ? (
+                  {!hasAccess ? (
+                    <Link
+                      to={subjectSlug ? `/subjects/${subjectSlug}/unlock` : '#'}
+                      className="btn-primary block text-center text-sm py-2 bg-amber-600 hover:bg-amber-700 text-white tracking-wide"
+                    >
+                      🔒 Unlock Subject
+                    </Link>
+                  ) : attempt ? (
                     <div className="flex items-center justify-between bg-paper p-3 rounded-card border border-paperDim">
                       <span className="text-xs font-mono text-emerald-700 font-bold">Completed</span>
                       <Link
@@ -115,4 +143,4 @@ export default function Quizzes() {
       )}
     </div>
   )
-}
+              }
