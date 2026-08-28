@@ -592,4 +592,4 @@ export default function AdminQuizEditor() {
       </button>
     </form>
   )
-      }
+                  }
