@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { hasPurchasedSubject } from '../lib/content'
 
 // Helper to extract clean string text from string, number, or object options
 const getOptionText = (opt) => {
@@ -31,9 +33,7 @@ function shuffleArray(array) {
   return shuffled
 }
 
-// Like shuffleArray, but guarantees every item moves to a different position
-// than it started in (no item stays "in place"). Falls back safely for
-// arrays too short to have a valid derangement (length 0 or 1).
+// Guarantee every item moves position (derangement)
 function derangeArray(array) {
   if (!Array.isArray(array) || array.length <= 1) return [...(array || [])]
   let shuffled = shuffleArray(array)
@@ -158,6 +158,9 @@ export default function QuizView() {
   const targetAttemptId = searchParams.get('attemptId')
   const canvasRef = useRef(null)
 
+  const { user: authUser, isAdmin } = useAuth()
+  const [accessDenied, setAccessDenied] = useState(false)
+
   const [loading, setLoading] = useState(true)
   const [quiz, setQuiz] = useState(null)
   const [questions, setQuestions] = useState([])
@@ -188,7 +191,7 @@ export default function QuizView() {
 
   useEffect(() => {
     loadQuizData()
-  }, [quizId, targetAttemptId])
+  }, [quizId, targetAttemptId, authUser, isAdmin])
 
   const handleSubmit = useCallback(async (isAutoSubmit = false) => {
     if (hasSubmittedRef.current || submitted || submitting) return
@@ -265,18 +268,49 @@ export default function QuizView() {
 
   async function loadQuizData() {
     setLoading(true)
+    setAccessDenied(false)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUser(user)
+      const activeUser = user || authUser
+      setCurrentUser(activeUser)
 
       const { data: qData, error: qErr } = await supabase
         .from('quizzes')
-        .select('*')
+        .select(`
+          *,
+          topics (
+            id,
+            name,
+            slug,
+            subject_id,
+            subjects ( id, name, slug )
+          )
+        `)
         .eq('id', quizId)
         .single()
 
       if (qErr) throw qErr
       setQuiz(qData)
+
+      // Route protection & entitlement verification
+      const isPremium = qData.is_premium !== false
+      const subjectId = qData.topics?.subject_id || qData.topics?.subjects?.id
+
+      let hasAccess = !isPremium || isAdmin
+      if (isPremium && !isAdmin) {
+        if (activeUser && subjectId) {
+          hasAccess = await hasPurchasedSubject(activeUser.id, subjectId, isAdmin)
+        } else {
+          hasAccess = false
+        }
+      }
+
+      if (!hasAccess) {
+        setAccessDenied(true)
+        setLoading(false)
+        return
+      }
+
       setTimeLeft((qData.time_limit_minutes || 10) * 60)
 
       const { data: questData, error: questErr } = await supabase
@@ -294,14 +328,14 @@ export default function QuizView() {
 
       setQuestions(sanitizedQuestions)
 
-      if (user) {
+      if (activeUser) {
         const startOfToday = new Date()
         startOfToday.setHours(0, 0, 0, 0)
 
         const { data: todayAttempts } = await supabase
           .from('quiz_attempts')
           .select('total_questions')
-          .eq('user_id', user.id)
+          .eq('user_id', activeUser.id)
           .gte('created_at', startOfToday.toISOString())
 
         const totalToday = todayAttempts?.reduce((sum, a) => sum + (a.total_questions || 0), 0) || 0
@@ -313,7 +347,7 @@ export default function QuizView() {
           .from('quiz_attempts')
           .select('*')
           .eq('quiz_id', quizId)
-          .eq('user_id', user.id)
+          .eq('user_id', activeUser.id)
 
         if (targetAttemptId) {
           attemptQuery = attemptQuery.eq('id', targetAttemptId)
@@ -546,6 +580,40 @@ export default function QuizView() {
       <div className="py-20 flex flex-col items-center justify-center gap-3">
         <div className="w-6 h-6 border-2 border-venous border-t-transparent rounded-full animate-spin" />
         <p className="text-slate font-mono text-xs tracking-wider">LOADING PRACTICE SESSION…</p>
+      </div>
+    )
+  }
+
+  if (accessDenied) {
+    const subject = quiz?.topics?.subjects
+    const unlockUrl = subject?.slug ? `/subjects/${subject.slug}/unlock` : '/subjects'
+
+    return (
+      <div className="max-w-md mx-auto p-8 text-center space-y-5 bg-white border border-paperDim rounded-card shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xl mx-auto font-bold">
+          🔒
+        </div>
+        <div>
+          <span className="specimen-label mb-1 block">Premium Practice Session</span>
+          <h1 className="text-2xl font-display font-bold text-ink">Quiz Locked</h1>
+        </div>
+        <p className="text-slate text-sm leading-relaxed">
+          This quiz requires access to <strong className="text-ink">{subject?.name || 'this subject'}</strong>. Unlock the subject module to access all associated practice quizzes and learning tools.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+          <Link
+            to={unlockUrl}
+            className="btn-primary py-2.5 px-6 bg-amber-600 hover:bg-amber-700 text-white text-sm"
+          >
+            Unlock Subject Module
+          </Link>
+          <Link
+            to="/quizzes"
+            className="btn-secondary py-2.5 px-6 text-sm"
+          >
+            Back to Quizzes
+          </Link>
+        </div>
       </div>
     )
   }
@@ -873,5 +941,4 @@ export default function QuizView() {
       )}
     </div>
   )
-          }
- 
+}
