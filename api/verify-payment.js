@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    // 1. Authenticate JWT token
+    // 1. Authenticate user JWT token
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Missing or invalid Authorization header.' })
@@ -23,19 +23,19 @@ export default async function handler(req, res) {
 
     const token = authHeader.split(' ')[1]
     const { data: { user }, error: authError } = await supabasePublic.auth.getUser(token)
-
+    
     if (authError || !user) {
       return res.status(401).json({ error: 'Unauthorized: Invalid or expired session token.' })
     }
 
     const userId = user.id
-    const { reference, subject_id } = req.body
+    const { reference } = req.body
 
-    if (!reference || !subject_id) {
-      return res.status(400).json({ error: 'Missing required parameters: reference and subject_id.' })
+    if (!reference) {
+      return res.status(400).json({ error: 'Missing required parameter: reference.' })
     }
 
-    // 2. Prevent reference reuse
+    // 2. Prevent duplicate reference processing
     const { data: existingPurchase } = await supabaseAdmin
       .from('purchases')
       .select('*')
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Paystack secret key missing from server environment.' })
     }
 
-    // 3. Verify transaction directly with Paystack API
+    // 3. Verify transaction directly with Paystack
     const paystackRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
       method: 'GET',
       headers: {
@@ -78,45 +78,48 @@ export default async function handler(req, res) {
 
     const transaction = paystackData.data
 
-    // 4. Verify transaction metadata binds to THIS exact subject — MANDATORY
-    const metadataSubjectId = transaction.metadata?.subject_id
-    if (!metadataSubjectId || String(metadataSubjectId) !== String(subject_id)) {
-      return res.status(400).json({ error: 'Payment reference is missing or invalid subject binding.' })
-    }
+    // 4. Flat platform-wide subscription price check (₦5,000)
+    const MONTHLY_SUBSCRIPTION_NGN = 5000 
+    const expectedKobo = MONTHLY_SUBSCRIPTION_NGN * 100
 
-    // 5. Verify price matches DB price
-    const { data: subject, error: subError } = await supabaseAdmin
-      .from('subjects')
-      .select('id, price_ngn')
-      .eq('id', subject_id)
-      .single()
-
-    if (subError || !subject) {
-      return res.status(404).json({ error: 'Subject not found.' })
-    }
-
-    const expectedKobo = Math.round(Number(subject.price_ngn) * 100)
     if (transaction.amount < expectedKobo) {
-      return res.status(400).json({ error: 'Paid amount is lower than required price.' })
+      return res.status(400).json({ error: 'Paid amount is lower than subscription price.' })
     }
 
-    // 6. Verify currency matches expected (NGN)
     if (transaction.currency !== 'NGN') {
       return res.status(400).json({ error: 'Unexpected transaction currency.' })
     }
 
-    // 7. Calculate 30-day expiration timestamp for monthly access
-    const expiresAt = new Date()
+    // 5. Smart Expiration Calculation (Extends existing subscription if user renews early)
+    const nowIso = new Date().toISOString()
+    const { data: currentActiveSub } = await supabaseAdmin
+      .from('purchases')
+      .select('expires_at')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .eq('plan_type', 'platform_pass')
+      .gt('expires_at', nowIso)
+      .order('expires_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let baseDate = new Date()
+    if (currentActiveSub && new Date(currentActiveSub.expires_at) > baseDate) {
+      baseDate = new Date(currentActiveSub.expires_at)
+    }
+
+    const expiresAt = new Date(baseDate)
     expiresAt.setDate(expiresAt.getDate() + 30)
 
-    // 8. Record purchase with 30-day expiration date
+    // 6. Record platform-wide subscription
     const { data: purchase, error: purchaseError } = await supabaseAdmin
       .from('purchases')
       .upsert(
         {
           user_id: userId,
-          subject_id,
-          amount_ngn: Number(subject.price_ngn),
+          subject_id: null,
+          plan_type: 'platform_pass',
+          amount_ngn: MONTHLY_SUBSCRIPTION_NGN,
           paystack_reference: reference,
           status: 'completed',
           expires_at: expiresAt.toISOString()
@@ -127,8 +130,6 @@ export default async function handler(req, res) {
       .single()
 
     if (purchaseError) {
-      // Handle race condition: unique constraint violation means another
-      // concurrent request already inserted this reference first
       if (purchaseError.code === '23505') {
         const { data: racedPurchase } = await supabaseAdmin
           .from('purchases')
@@ -149,7 +150,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Payment verified! 30 days access granted.',
+      message: 'Payment verified! 30 days platform-wide access granted.',
       purchase
     })
   } catch (error) {
