@@ -11,13 +11,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
     // 1. Authenticate JWT token
@@ -40,7 +35,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required parameters: reference and subject_id.' })
     }
 
-    // 2. Check if reference has ALREADY been processed to prevent reuse/overwriting
+    // 2. Prevent reference reuse
     const { data: existingPurchase } = await supabaseAdmin
       .from('purchases')
       .select('*')
@@ -54,9 +49,8 @@ export default async function handler(req, res) {
           message: 'Payment already verified.',
           purchase: existingPurchase
         })
-      } else {
-        return res.status(400).json({ error: 'Transaction reference already claimed by another user.' })
       }
+      return res.status(400).json({ error: 'Transaction reference already claimed.' })
     }
 
     const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
@@ -64,7 +58,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Paystack secret key missing from server environment.' })
     }
 
-    // 3. Verify transaction directly with Paystack
+    // 3. Verify transaction directly with Paystack API
     const paystackRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
       method: 'GET',
       headers: {
@@ -84,7 +78,7 @@ export default async function handler(req, res) {
 
     const transaction = paystackData.data
 
-    // 4. Verify transaction metadata binds to THIS exact subject — now MANDATORY, not optional
+    // 4. Verify transaction metadata binds to THIS exact subject — MANDATORY
     const metadataSubjectId = transaction.metadata?.subject_id
     if (!metadataSubjectId || String(metadataSubjectId) !== String(subject_id)) {
       return res.status(400).json({ error: 'Payment reference is missing or invalid subject binding.' })
@@ -103,15 +97,19 @@ export default async function handler(req, res) {
 
     const expectedKobo = Math.round(Number(subject.price_ngn) * 100)
     if (transaction.amount < expectedKobo) {
-      return res.status(400).json({ error: 'Paid amount is lower than subject price.' })
+      return res.status(400).json({ error: 'Paid amount is lower than required price.' })
     }
 
-    // 6. Verify currency matches expected (NGN) — prevents cross-currency amount confusion
+    // 6. Verify currency matches expected (NGN)
     if (transaction.currency !== 'NGN') {
       return res.status(400).json({ error: 'Unexpected transaction currency.' })
     }
 
-    // 7. Record purchase for authenticated user
+    // 7. Calculate 30-day expiration timestamp for monthly access
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 30)
+
+    // 8. Record purchase with 30-day expiration date
     const { data: purchase, error: purchaseError } = await supabaseAdmin
       .from('purchases')
       .upsert(
@@ -120,7 +118,8 @@ export default async function handler(req, res) {
           subject_id,
           amount_ngn: Number(subject.price_ngn),
           paystack_reference: reference,
-          status: 'completed'
+          status: 'completed',
+          expires_at: expiresAt.toISOString()
         },
         { onConflict: 'paystack_reference' }
       )
@@ -150,10 +149,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Payment verified and subject access granted.',
+      message: 'Payment verified! 30 days access granted.',
       purchase
     })
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Server error verifying payment.' })
   }
-  }
+}
