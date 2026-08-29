@@ -64,42 +64,45 @@ export async function getLessonBySlug(topicId, lessonSlug) {
   return data
 }
 
-// ---- Purchases & Unlocks ----
+// ---- Purchases & SaaS Expiration Entitlements ----
 
 export async function hasPurchasedSubject(userId, subjectId, isAdmin = false) {
   if (isAdmin) return true
   if (!userId || !subjectId) return false
+
+  const now = new Date().toISOString()
   const { data, error } = await supabase
     .from('purchases')
-    .select('id')
+    .select('id, expires_at')
     .eq('user_id', userId)
     .eq('subject_id', subjectId)
     .eq('status', 'completed')
+    .gt('expires_at', now)
     .maybeSingle()
+
   if (error) throw error
   return Boolean(data)
 }
 
-
 export async function getUserPurchases(userId) {
+  if (!userId) return []
+  const now = new Date().toISOString()
   const { data, error } = await supabase
     .from('purchases')
     .select('subject_id')
     .eq('user_id', userId)
     .eq('status', 'completed')
+    .gt('expires_at', now)
+
   if (error) throw error
   return data ? data.map(p => p.subject_id) : []
 }
 
-export async function createPurchase(purchase) {
-  const { data, error } = await supabase
-    .from('purchases')
-    .insert(purchase)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+// NOTE: createPurchase() intentionally removed.
+// Purchases are now only written server-side via /api/verify-payment.js,
+// using the Supabase service role key after independently verifying
+// payment with Paystack. This file no longer exposes any client-side
+// write path to the purchases table.
 
 // ---- Admin: Create ----
 
@@ -208,4 +211,4 @@ export async function deleteTopic(id) {
 export async function deleteLesson(id) {
   const { error } = await supabase.from('lessons').delete().eq('id', id)
   if (error) throw error
-}
+    }
