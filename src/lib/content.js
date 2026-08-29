@@ -64,45 +64,51 @@ export async function getLessonBySlug(topicId, lessonSlug) {
   return data
 }
 
-// ---- Purchases & SaaS Expiration Entitlements ----
+// ---- SaaS App-Wide Pass Entitlements ----
 
-export async function hasPurchasedSubject(userId, subjectId, isAdmin = false) {
+export async function hasActiveSubscription(userId, isAdmin = false) {
   if (isAdmin) return true
-  if (!userId || !subjectId) return false
+  if (!userId) return false
 
   const now = new Date().toISOString()
   const { data, error } = await supabase
     .from('purchases')
-    .select('id, expires_at')
+    .select('id')
     .eq('user_id', userId)
-    .eq('subject_id', subjectId)
     .eq('status', 'completed')
+    .eq('plan_type', 'platform_pass')
     .gt('expires_at', now)
-    .maybeSingle()
+    .order('expires_at', { ascending: false })
+    .limit(1)
 
   if (error) throw error
-  return Boolean(data)
+  return Boolean(data && data.length > 0)
 }
 
+// Alias maintained for backward compatibility with existing UI components
+export async function hasPurchasedSubject(userId, _subjectId, isAdmin = false) {
+  return hasActiveSubscription(userId, isAdmin)
+}
+
+// Returns all subject IDs if user has active subscription, or empty array if expired
 export async function getUserPurchases(userId) {
   if (!userId) return []
-  const now = new Date().toISOString()
+  
+  const hasAccess = await hasActiveSubscription(userId)
+  if (!hasAccess) return []
+
+  // If active, return all subject IDs so client checks like userPurchases.includes(id) pass
   const { data, error } = await supabase
-    .from('purchases')
-    .select('subject_id')
-    .eq('user_id', userId)
-    .eq('status', 'completed')
-    .gt('expires_at', now)
+    .from('subjects')
+    .select('id')
 
   if (error) throw error
-  return data ? data.map(p => p.subject_id) : []
+  return data ? data.map(s => s.id) : []
 }
 
-// NOTE: createPurchase() intentionally removed.
-// Purchases are now only written server-side via /api/verify-payment.js,
-// using the Supabase service role key after independently verifying
-// payment with Paystack. This file no longer exposes any client-side
-// write path to the purchases table.
+// NOTE: createPurchase() was intentionally removed.
+// Purchases are now written server-side via /api/verify-payment.js
+// using the Service Role Key after Paystack verification.
 
 // ---- Admin: Create ----
 
@@ -211,4 +217,5 @@ export async function deleteTopic(id) {
 export async function deleteLesson(id) {
   const { error } = await supabase.from('lessons').delete().eq('id', id)
   if (error) throw error
-    }
+}
+  
