@@ -46,7 +46,7 @@ export default function Signup() {
   return (
     <div className="max-w-sm mx-auto mt-8">
       <span className="specimen-label mb-4 block w-fit">Create account</span>
-      <h1 className="font-display text-2xl font-semibold mb-6">Join Deltoid with your others!</h1>
+      <h1 className="font-display text-2xl font-semibold mb-6">Join Deltoid with others!</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Full name">
           <input
