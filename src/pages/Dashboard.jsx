@@ -39,7 +39,7 @@ export default function Dashboard() {
     return (
       <div className="py-20 flex flex-col items-center justify-center gap-3">
         <div className="w-6 h-6 border-2 border-venous border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate font-mono text-xs tracking-wider">LOADING CURRICULUMâ€¦</p>
+        <p className="text-slate font-mono text-xs tracking-wider">LOADING CURRICULUM…</p>
       </div>
     )
   }
