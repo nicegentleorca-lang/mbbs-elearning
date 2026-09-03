@@ -25,10 +25,17 @@ export default function Login() {
   }
 
   return (
-    <div className="relative flex-1 min-h-full bg-ink rounded-card overflow-hidden border border-paperDim shadow-sm flex flex-col">
+    // Safe full-bleed technique: instead of forcing 100vw (which can add a
+    // horizontal scrollbar on some browsers when a vertical scrollbar is
+    // present), we just cancel out main's own padding exactly, using the
+    // same values main already uses (px-4 sm:px-6 py-8 -> -mx-4 sm:-mx-6 -my-8).
+    // This has no viewport-unit risk at all. On very wide desktop screens
+    // this bleeds to the edge of main's max-w-5xl container rather than the
+    // true screen edge — a reasonable tradeoff, and irrelevant on the
+    // phone/tablet portrait screens this is actually being used on.
+    <div className="relative -mx-4 sm:-mx-6 -my-8 flex-1 min-h-full bg-ink overflow-hidden flex flex-col">
 
-      {/* Layered triangle motif — sized and spread to cover the full
-          panel regardless of how tall it stretches, portrait or landscape. */}
+      {/* Layered triangle motif */}
       <svg
         className="absolute -right-16 -top-20 w-72 h-72 sm:w-96 sm:h-96 opacity-[0.16] pointer-events-none"
         viewBox="0 0 64 64" fill="none"
@@ -44,7 +51,6 @@ export default function Login() {
         <polygon points="32,4 60,56 4,56" stroke="#F0F2F0" strokeWidth="0.9" fill="none" />
         <polygon points="32,18 48,50 16,50" stroke="#F0F2F0" strokeWidth="0.9" fill="none" />
       </svg>
-      {/* Extra motifs so tall portrait screens stay covered edge to edge */}
       <svg
         className="absolute left-1/2 -translate-x-1/2 top-1/3 w-[500px] h-[500px] opacity-[0.05] pointer-events-none"
         viewBox="0 0 64 64" fill="none"
@@ -58,7 +64,8 @@ export default function Login() {
         <polygon points="32,4 60,56 4,56" stroke="#F0F2F0" strokeWidth="0.7" fill="none" />
       </svg>
 
-      {/* Content stretches with the panel and centers within it */}
+      {/* Content is re-padded here, independent of main's own padding
+          which we just cancelled out above. */}
       <div className="relative flex-1 flex flex-col items-center justify-center px-6 py-14 sm:py-20">
 
         <div className="text-center mb-10">
