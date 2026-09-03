@@ -25,11 +25,10 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-[75vh] bg-ink rounded-card overflow-hidden border border-paperDim shadow-sm">
+    <div className="relative flex-1 min-h-full bg-ink rounded-card overflow-hidden border border-paperDim shadow-sm flex flex-col">
 
-      {/* Layered triangle motif — framing the whole page, top and bottom,
-          so it's visible on every screen size and orientation, not just
-          wide/landscape screens. */}
+      {/* Layered triangle motif — sized and spread to cover the full
+          panel regardless of how tall it stretches, portrait or landscape. */}
       <svg
         className="absolute -right-16 -top-20 w-72 h-72 sm:w-96 sm:h-96 opacity-[0.16] pointer-events-none"
         viewBox="0 0 64 64" fill="none"
@@ -45,9 +44,22 @@ export default function Login() {
         <polygon points="32,4 60,56 4,56" stroke="#F0F2F0" strokeWidth="0.9" fill="none" />
         <polygon points="32,18 48,50 16,50" stroke="#F0F2F0" strokeWidth="0.9" fill="none" />
       </svg>
+      {/* Extra motifs so tall portrait screens stay covered edge to edge */}
+      <svg
+        className="absolute left-1/2 -translate-x-1/2 top-1/3 w-[500px] h-[500px] opacity-[0.05] pointer-events-none"
+        viewBox="0 0 64 64" fill="none"
+      >
+        <polygon points="32,4 60,56 4,56" stroke="#529EA3" strokeWidth="0.6" fill="none" />
+      </svg>
+      <svg
+        className="absolute -right-24 bottom-0 w-80 h-80 opacity-[0.07] pointer-events-none"
+        viewBox="0 0 64 64" fill="none"
+      >
+        <polygon points="32,4 60,56 4,56" stroke="#F0F2F0" strokeWidth="0.7" fill="none" />
+      </svg>
 
-      {/* Content sits above the motif on every screen size */}
-      <div className="relative flex flex-col items-center px-6 py-14 sm:py-20">
+      {/* Content stretches with the panel and centers within it */}
+      <div className="relative flex-1 flex flex-col items-center justify-center px-6 py-14 sm:py-20">
 
         <div className="text-center mb-10">
           <span className="font-display text-xl font-bold tracking-wide text-white">DELTOID</span>
