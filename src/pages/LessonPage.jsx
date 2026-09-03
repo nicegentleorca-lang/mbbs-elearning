@@ -37,7 +37,7 @@ export default function LessonPage() {
     return () => { cancelled = true }
   }, [subjectSlug, topicSlug, lessonSlug, user, isAdmin])
 
-  if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
+  if (loading) return <p className="text-slate dark:text-slate-light font-mono text-sm">Loading…</p>
   if (error) return <p className="text-vital">{error}</p>
 
   return (
@@ -46,29 +46,29 @@ export default function LessonPage() {
         ← {topic.name}
       </Link>
       <span className="specimen-label mt-4 mb-3 block w-fit">{subject.name} · {topic.name}</span>
-      <h1 className="font-display text-3xl font-semibold mb-6">{lesson.title}</h1>
+      <h1 className="font-display text-3xl font-semibold mb-6 text-ink dark:text-paper">{lesson.title}</h1>
 
       <div
-        className="prose max-w-none font-display text-lg leading-relaxed mb-4"
+        className="prose dark:prose-invert max-w-none font-display text-lg leading-relaxed mb-4"
         dangerouslySetInnerHTML={{ __html: lesson.preview_html || '' }}
       />
 
       {owned ? (
         <div
-          className="prose max-w-none font-display text-lg leading-relaxed"
+          className="prose dark:prose-invert max-w-none font-display text-lg leading-relaxed"
           dangerouslySetInnerHTML={{ __html: lesson.content_html || '' }}
         />
       ) : (
         <div className="relative mt-2">
           <div
-            className="prose max-w-none font-display text-lg leading-relaxed paywall-blur select-none"
+            className="prose dark:prose-invert max-w-none font-display text-lg leading-relaxed paywall-blur select-none"
             dangerouslySetInnerHTML={{ __html: lesson.content_html || '' }}
             aria-hidden="true"
           />
-          <div className="absolute inset-0 flex items-start justify-center pt-12 bg-gradient-to-b from-transparent to-paper">
+          <div className="absolute inset-0 flex items-start justify-center pt-12 bg-gradient-to-b from-transparent to-paper dark:to-inkDeep">
             <div className="index-card px-6 py-5 text-center max-w-xs">
-              <p className="font-display text-lg font-semibold mb-2">Unlock {subject.name}</p>
-              <p className="text-slate text-sm mb-4">
+              <p className="font-display text-lg font-semibold mb-2 text-ink dark:text-paper">Unlock {subject.name}</p>
+              <p className="text-slate dark:text-slate-light text-sm mb-4">
                 One-time payment. Full notes for every topic in {subject.name}, forever.
               </p>
               <Link to={`/subjects/${subjectSlug}/unlock`} className="btn-primary inline-block">
