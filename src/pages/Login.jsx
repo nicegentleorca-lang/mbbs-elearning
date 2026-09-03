@@ -25,69 +25,40 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-[75vh] grid md:grid-cols-[1.1fr_1fr] rounded-card overflow-hidden border border-paperDim shadow-sm">
+    <div className="relative min-h-[75vh] bg-ink rounded-card overflow-hidden border border-paperDim shadow-sm">
 
-      {/* Left: brand panel with layered deltoid motif */}
-      <div className="relative hidden md:flex flex-col justify-between bg-ink text-white px-10 py-12 overflow-hidden">
-        {/* Layered triangle motif, echoing the deltoid mark at scale */}
-        <svg
-          className="absolute -right-24 -top-16 w-[420px] h-[420px] opacity-[0.14]"
-          viewBox="0 0 64 64" fill="none"
-        >
-          <polygon points="32,4 60,56 4,56" stroke="#529EA3" strokeWidth="1.2" fill="none" />
-          <polygon points="32,18 48,50 16,50" stroke="#529EA3" strokeWidth="1.2" fill="none" />
-          <polygon points="32,30 40,46 24,46" stroke="#E5593F" strokeWidth="1.2" fill="none" />
-        </svg>
-        <svg
-          className="absolute -left-16 bottom-0 w-64 h-64 opacity-[0.08]"
-          viewBox="0 0 64 64" fill="none"
-        >
-          <polygon points="32,4 60,56 4,56" stroke="#F0F2F0" strokeWidth="0.8" fill="none" />
-        </svg>
+      {/* Layered triangle motif — framing the whole page, top and bottom,
+          so it's visible on every screen size and orientation, not just
+          wide/landscape screens. */}
+      <svg
+        className="absolute -right-16 -top-20 w-72 h-72 sm:w-96 sm:h-96 opacity-[0.16] pointer-events-none"
+        viewBox="0 0 64 64" fill="none"
+      >
+        <polygon points="32,4 60,56 4,56" stroke="#529EA3" strokeWidth="1.2" fill="none" />
+        <polygon points="32,18 48,50 16,50" stroke="#529EA3" strokeWidth="1.2" fill="none" />
+        <polygon points="32,30 40,46 24,46" stroke="#E5593F" strokeWidth="1.2" fill="none" />
+      </svg>
+      <svg
+        className="absolute -left-20 -bottom-24 w-64 h-64 sm:w-80 sm:h-80 opacity-[0.12] pointer-events-none"
+        viewBox="0 0 64 64" fill="none"
+      >
+        <polygon points="32,4 60,56 4,56" stroke="#F0F2F0" strokeWidth="0.9" fill="none" />
+        <polygon points="32,18 48,50 16,50" stroke="#F0F2F0" strokeWidth="0.9" fill="none" />
+      </svg>
 
-        <div className="relative">
-          <span className="font-display text-xl font-bold tracking-wide">DELTOID</span>
+      {/* Content sits above the motif on every screen size */}
+      <div className="relative flex flex-col items-center px-6 py-14 sm:py-20">
+
+        <div className="text-center mb-10">
+          <span className="font-display text-xl font-bold tracking-wide text-white">DELTOID</span>
           <p className="text-sm text-white/50 mt-1">Active recall for the wards ahead.</p>
         </div>
 
-        <blockquote className="relative font-display text-2xl leading-snug text-white/90 max-w-sm">
-          Every muscle has an origin, an insertion, and a reason it's tested.
-          <span className="block text-sm font-sans text-white/40 mt-4 not-italic">
-            — what preclinicals actually feel like
-          </span>
-        </blockquote>
-      </div>
-
-      {/* Right: form panel */}
-      <div className="flex flex-col justify-center px-6 sm:px-12 py-12 bg-paper">
-        <div className="w-full max-w-sm mx-auto md:mx-0">
-          {/* Mobile-only compact brand mark, since the left panel is hidden below md */}
-          <div className="flex items-center gap-2 mb-8 md:hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" className="w-7 h-7">
-              <defs>
-                <linearGradient id="deltoid-bg-m" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1B2A4A" />
-                  <stop offset="100%" stopColor="#0E1726" />
-                </linearGradient>
-                <linearGradient id="deltoid-teal-m" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#529EA3" />
-                  <stop offset="100%" stopColor="#2C5254" />
-                </linearGradient>
-                <linearGradient id="deltoid-vital-m" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#E5593F" />
-                  <stop offset="100%" stopColor="#A8321C" />
-                </linearGradient>
-              </defs>
-              <rect width="64" height="64" rx="14" fill="url(#deltoid-bg-m)" />
-              <polygon points="32,12 52,48 12,48" fill="url(#deltoid-teal-m)" />
-              <polygon points="32,22 43,43 21,43" fill="url(#deltoid-bg-m)" />
-              <circle cx="32" cy="35" r="3.5" fill="url(#deltoid-vital-m)" />
-            </svg>
-            <span className="font-display text-base font-bold tracking-wide text-ink">DELTOID</span>
-          </div>
-
-          <h1 className="font-display text-3xl font-semibold text-ink mb-2">Welcome back</h1>
-          <p className="text-sm text-slate mb-8">Pick up your prep where you left off.</p>
+        <div className="w-full max-w-sm bg-paper rounded-card p-6 sm:p-8 shadow-sm">
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink mb-2">
+            Welcome back
+          </h1>
+          <p className="text-sm text-slate mb-7">Pick up your prep where you left off.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Email">
@@ -123,6 +94,13 @@ export default function Login() {
             New here? <Link to="/signup" className="text-venous hover:underline">Create an account</Link>
           </p>
         </div>
+
+        <blockquote className="relative text-center font-display text-lg sm:text-xl leading-snug text-white/85 max-w-sm mt-10">
+          Every muscle has an origin, an insertion, and a reason it's tested.
+          <span className="block text-xs font-sans text-white/40 mt-3 not-italic">
+            — what preclinicals actually feel like
+          </span>
+        </blockquote>
       </div>
     </div>
   )
