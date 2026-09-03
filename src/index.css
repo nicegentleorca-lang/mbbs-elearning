@@ -7,12 +7,12 @@ html, body, #root {
 }
 
 body {
-  @apply bg-paper text-ink font-sans antialiased selection:bg-venous/20 selection:text-ink;
+  @apply bg-paper dark:bg-inkDeep text-ink dark:text-paper font-sans antialiased selection:bg-venous/20 selection:text-ink dark:selection:text-paper;
 }
 
 /* Signature Deltoid "Specimen Label" — Eyebrow label with clinical corner ticks */
 .specimen-label {
-  @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate font-medium;
+  @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate dark:text-slate-light font-medium;
   padding: 0.35rem 0.75rem;
 }
 .specimen-label::before,
@@ -34,10 +34,10 @@ body {
 
 /* Index-card style for topic, lesson, and quiz cards */
 .index-card {
-  @apply bg-white border border-paperDim rounded-card shadow-card transition-all duration-200;
+  @apply bg-white dark:bg-ink border border-paperDim dark:border-white/10 rounded-card shadow-card transition-all duration-200;
 }
 .index-card:hover {
-  @apply shadow-hover border-venous/30 -translate-y-[1px];
+  @apply shadow-hover border-venous/30 dark:border-venous/50 -translate-y-[1px];
 }
 
 /* Blurred lock overlay for paywalled content */
@@ -48,7 +48,7 @@ body {
 }
 
 .input {
-  @apply w-full border border-paperDim bg-white rounded-card px-3.5 py-2.5 text-ink placeholder:text-slate-light focus:border-venous focus:ring-1 focus:ring-venous outline-none transition-all text-sm;
+  @apply w-full border border-paperDim dark:border-white/10 bg-white dark:bg-ink rounded-card px-3.5 py-2.5 text-ink dark:text-paper placeholder:text-slate-light dark:placeholder:text-slate-light/60 focus:border-venous focus:ring-1 focus:ring-venous outline-none transition-all text-sm;
 }
 
 .btn-primary {
@@ -56,7 +56,7 @@ body {
 }
 
 .btn-secondary {
-  @apply bg-white border border-paperDim text-ink font-medium px-4 py-2.5 rounded-card hover:border-venous hover:bg-paper/50 active:scale-[0.99] transition-all shadow-sm disabled:opacity-50 text-sm;
+  @apply bg-white dark:bg-ink border border-paperDim dark:border-white/10 text-ink dark:text-paper font-medium px-4 py-2.5 rounded-card hover:border-venous hover:bg-paper/50 dark:hover:bg-ink/60 active:scale-[0.99] transition-all shadow-sm disabled:opacity-50 text-sm;
 }
 
 :focus-visible {
@@ -78,4 +78,17 @@ body {
   margin: 1.5rem auto;
   border-radius: 6px;
   border: 1px solid #E2E8E6;
+}
+
+/* Dark-mode border for the same image rule above. This can't use a
+   Tailwind dark: utility class since these are raw HTML selectors
+   (img tags inside rendered lesson content), not elements we control
+   the class list on — so it needs its own explicit media query,
+   matching the same automatic OS-preference behavior as everywhere else. */
+@media (prefers-color-scheme: dark) {
+  .ql-editor img,
+  .prose img,
+  .lesson-content img {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
 }
