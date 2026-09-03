@@ -2,21 +2,11 @@ import typography from '@tailwindcss/typography'
 
 /** @type {import('tailwindcss').Config} */
 export default {
-  // 'media' = automatic based on the user's OS/browser preference.
-  // No toggle, no JS, no stored preference needed — this is the entire
-  // mechanism that makes dark mode "automatic."
-  darkMode: 'media',
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
         ink: '#1B2A4A',
-        // New: pulled directly from the favicon's existing gradient
-        // (deltoid-bg goes #1B2A4A -> #0E1726), so this is already an
-        // on-brand color, not an invented one. Used as the dark-mode
-        // page background; 'ink' itself becomes the panel/card color,
-        // one step lighter — mirroring the paper/paperDim relationship.
-        inkDeep: '#0E1726',
         paper: '#EEF2F1',
         paperDim: '#E2E8E6',
         vital: '#C1442D',
