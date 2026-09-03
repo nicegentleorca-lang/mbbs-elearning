@@ -22,7 +22,7 @@ export default function Layout({ children }) {
       {/* Top Header / Navigation */}
       <header className="border-b border-paperDim bg-paper/95 backdrop-blur-md sticky top-0 z-30 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
-          
+
           {/* Brand Emblem & Name */}
           <Link to="/" className="group flex items-center gap-2">
             <DeltoidLogo className="w-8 h-8 transition-transform group-hover:scale-105" showText={true} />
@@ -74,8 +74,11 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      {/* Main Page Body */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
+      {/* Main Page Body — now a flex column itself, so a single full-height
+          page (like Login) can stretch to fill it exactly. Pages that don't
+          opt into stretching are completely unaffected, since a flex item
+          with no height opt-in still just sizes to its own content. */}
+      <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
         {children || <Outlet />}
       </main>
 
