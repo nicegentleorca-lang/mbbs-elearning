@@ -10,7 +10,7 @@ body {
   @apply bg-paper text-ink font-sans antialiased selection:bg-venous/20 selection:text-ink;
 }
 
-/* Signature Deltoid "Specimen Label" â€” Eyebrow label with clinical corner ticks */
+/* Signature Deltoid "Specimen Label" — Eyebrow label with clinical corner ticks */
 .specimen-label {
   @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate font-medium;
   padding: 0.35rem 0.75rem;
