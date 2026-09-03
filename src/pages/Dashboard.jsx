@@ -39,16 +39,16 @@ export default function Dashboard() {
     return (
       <div className="py-20 flex flex-col items-center justify-center gap-3">
         <div className="w-6 h-6 border-2 border-venous border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate font-mono text-xs tracking-wider">LOADING CURRICULUM…</p>
+        <p className="text-slate dark:text-slate-light font-mono text-xs tracking-wider">LOADING CURRICULUM…</p>
       </div>
     )
   }
 
   if (subjects.length === 0) {
     return (
-      <div className="text-center py-20 bg-white/50 border border-paperDim rounded-card">
+      <div className="text-center py-20 bg-white/50 dark:bg-ink/40 border border-paperDim dark:border-white/10 rounded-card">
         <span className="specimen-label mb-4 inline-block">SYSTEM EMPTY</span>
-        <p className="text-slate text-sm">No subjects available right now. Check back soon!</p>
+        <p className="text-slate dark:text-slate-light text-sm">No subjects available right now. Check back soon!</p>
       </div>
     )
   }
@@ -57,20 +57,20 @@ export default function Dashboard() {
     <div className="space-y-6">
       <header>
         <span className="specimen-label mb-2 block w-fit">Welcome, Medic!</span>
-        <h1 className="font-display text-3xl font-bold text-ink">Subjects</h1>
+        <h1 className="font-display text-3xl font-bold text-ink dark:text-paper">Subjects</h1>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {subjects.map(subject => {
           const isOwned = purchasedIds.has(subject.id)
           return (
-            <Link 
-              key={subject.id} 
-              to={`/subjects/${subject.slug}`} 
+            <Link
+              key={subject.id}
+              to={`/subjects/${subject.slug}`}
               className="index-card p-6 block group"
             >
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-display text-xl font-bold text-ink group-hover:text-venous transition-colors">
+                <h2 className="font-display text-xl font-bold text-ink dark:text-paper group-hover:text-venous transition-colors">
                   {subject.name}
                 </h2>
                 {isOwned && (
@@ -80,7 +80,7 @@ export default function Dashboard() {
                 )}
               </div>
               {subject.description && (
-                <p className="text-slate text-sm mt-2.5 leading-relaxed">
+                <p className="text-slate dark:text-slate-light text-sm mt-2.5 leading-relaxed">
                   {subject.description}
                 </p>
               )}
