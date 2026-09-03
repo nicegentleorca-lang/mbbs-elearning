@@ -37,15 +37,15 @@ export default function LessonPage() {
     return () => { cancelled = true }
   }, [subjectSlug, topicSlug, lessonSlug, user, isAdmin])
 
-  if (loading) return <p className="text-slate font-mono text-sm">Loadingâ€¦</p>
+  if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
   if (error) return <p className="text-vital">{error}</p>
 
   return (
     <div>
       <Link to={`/subjects/${subjectSlug}/${topicSlug}`} className="text-venous text-sm hover:underline">
-        â† {topic.name}
+        ← {topic.name}
       </Link>
-      <span className="specimen-label mt-4 mb-3 block w-fit">{subject.name} Â· {topic.name}</span>
+      <span className="specimen-label mt-4 mb-3 block w-fit">{subject.name} · {topic.name}</span>
       <h1 className="font-display text-3xl font-semibold mb-6">{lesson.title}</h1>
 
       <div
