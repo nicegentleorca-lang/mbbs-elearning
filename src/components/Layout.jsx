@@ -2,9 +2,6 @@ import { Link, NavLink, useNavigate, useLocation, Outlet } from 'react-router-do
 import { useAuth } from '../contexts/AuthContext'
 import DeltoidLogo from './DeltoidLogo'
 
-// Routes that use a full-bleed dark hero (like Login) should carry that
-// theme through into the footer too, instead of transitioning into the
-// default plain/pale footer right after a vivid panel.
 const DARK_FOOTER_ROUTES = ['/login', '/signup']
 
 export default function Layout({ children }) {
@@ -19,27 +16,27 @@ export default function Layout({ children }) {
     navigate('/login')
   }
 
-  // Active link style indicator
+  // Active link style indicator with whitespace-nowrap to prevent text wrapping
   const navLinkClass = ({ isActive }) =>
-    `text-sm font-medium transition-colors ${
+    `text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
       isActive ? 'text-ink font-semibold border-b-2 border-vital pb-0.5' : 'text-slate hover:text-ink'
     }`
 
   return (
-    <div className="min-h-screen flex flex-col bg-paper">
+    <div className="min-h-screen w-full flex flex-col bg-paper overflow-x-hidden">
       {/* Top Header / Navigation */}
-      <header className="border-b border-paperDim bg-paper/95 backdrop-blur-md sticky top-0 z-30 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+      <header className="border-b border-paperDim bg-paper/95 backdrop-blur-md sticky top-0 z-30 shadow-sm w-full">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
 
           {/* Brand Emblem & Name */}
-          <Link to="/" className="group flex items-center gap-2">
-            <DeltoidLogo className="w-8 h-8 transition-transform group-hover:scale-105" showText={true} />
+          <Link to="/" className="group flex items-center gap-1.5 shrink-0">
+            <DeltoidLogo className="w-7 h-7 sm:w-8 sm:h-8 transition-transform group-hover:scale-105" showText={true} />
           </Link>
 
-          {/* Navigation Items */}
-          <nav className="flex items-center gap-5 sm:gap-6">
+          {/* Navigation Items (Scrolls horizontally on extremely narrow mobile devices instead of overflowing screen) */}
+          <nav className="flex items-center gap-3 sm:gap-6 overflow-x-auto no-scrollbar py-1">
             {user && (
-              <div className="flex items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-3 sm:gap-6 shrink-0">
                 <NavLink to="/" end className={navLinkClass}>
                   Crash Courses
                 </NavLink>
@@ -56,7 +53,7 @@ export default function Layout({ children }) {
             {isAdmin && (
               <NavLink
                 to="/admin"
-                className="bg-venous/10 text-venous hover:bg-venous hover:text-white text-xs font-mono font-semibold uppercase px-2.5 py-1 rounded border border-venous/30 transition-all"
+                className="shrink-0 bg-venous/10 text-venous hover:bg-venous hover:text-white text-[10px] sm:text-xs font-mono font-semibold uppercase px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border border-venous/30 transition-all"
               >
                 Admin
               </NavLink>
@@ -66,14 +63,14 @@ export default function Layout({ children }) {
             {user ? (
               <button
                 onClick={handleSignOut}
-                className="text-sm font-medium text-slate hover:text-vital transition-colors border-l border-paperDim pl-4"
+                className="shrink-0 text-xs sm:text-sm font-medium text-slate hover:text-vital transition-colors border-l border-paperDim pl-2.5 sm:pl-4 whitespace-nowrap"
               >
                 Sign out
               </button>
             ) : (
               <Link
                 to="/login"
-                className="btn-primary text-xs"
+                className="btn-primary text-xs shrink-0 whitespace-nowrap"
               >
                 Sign in
               </Link>
@@ -82,23 +79,21 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      {/* Main Page Body — a flex column itself, so a single full-height
-          page (like Login) can stretch to fill it exactly. */}
-      <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
+      {/* Main Page Body */}
+      <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8">
         {children || <Outlet />}
       </main>
 
-      {/* Footer — dark/themed on full-bleed hero pages so it flows
-          naturally out of the panel above, plain/pale everywhere else. */}
+      {/* Footer */}
       <footer
         className={
           useDarkFooter
-            ? 'border-t border-white/10 bg-ink py-6 text-xs text-white/50'
-            : 'border-t border-paperDim bg-white/60 py-6 text-xs text-slate'
+            ? 'border-t border-white/10 bg-ink py-6 text-xs text-white/50 w-full'
+            : 'border-t border-paperDim bg-white/60 py-6 text-xs text-slate w-full'
         }
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
             <DeltoidLogo className="w-4 h-4" />
             <span
               className={
