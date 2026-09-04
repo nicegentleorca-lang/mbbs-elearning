@@ -63,7 +63,7 @@ export default function LessonPage() {
         <div className="index-card px-6 py-5 text-center max-w-xs mt-2">
           <p className="font-display text-lg font-semibold mb-2">Unlock {subject.name}</p>
           <p className="text-slate text-sm mb-4">
-            One-time payment. Full notes for every topic in {subject.name}, forever.
+            One monthly payment. Full notes for every subject, including {subject.name}.
           </p>
           <Link to={`/subjects/${subjectSlug}/unlock`} className="btn-primary inline-block">
             See price
