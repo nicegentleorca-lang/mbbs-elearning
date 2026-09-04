@@ -53,12 +53,18 @@ export async function getLessonsByTopic(topicId) {
   return data
 }
 
+// Gated read: content_html only comes back populated if the caller is
+// an admin or holds an active platform_pass. That check now happens
+// inside the get_lesson_gated() Postgres function (SECURITY DEFINER),
+// not in this JS — see supabase_migration_gate_lesson_content.sql.
+// Direct SELECT on lessons.content_html is revoked for the
+// authenticated role, so this RPC is the only path back to it.
+// The returned `owned` flag replaces the old separate
+// hasPurchasedSubject() call on the lesson page, since it's computed
+// from the same source of truth in the same query.
 export async function getLessonBySlug(topicId, lessonSlug) {
   const { data, error } = await supabase
-    .from('lessons')
-    .select('*')
-    .eq('topic_id', topicId)
-    .eq('slug', lessonSlug)
+    .rpc('get_lesson_gated', { p_topic_id: topicId, p_lesson_slug: lessonSlug })
     .single()
   if (error) throw error
   return data
@@ -132,14 +138,18 @@ export async function createTopic(topic) {
   return data
 }
 
+// content_html can no longer be selected back directly on `lessons`
+// (see migration), so this inserts with a minimal .select('id') —
+// which stays inside the granted column set — then fetches the
+// confirmed saved row through the admin-gated RPC below.
 export async function createLesson(lesson) {
   const { data, error } = await supabase
     .from('lessons')
     .insert(lesson)
-    .select()
+    .select('id')
     .single()
   if (error) throw error
-  return data
+  return getLessonById(data.id)
 }
 
 // ---- Admin: Storage ----
@@ -166,8 +176,15 @@ export async function getTopicById(id) {
   return data
 }
 
+// Routed through get_lesson_admin(), which independently verifies
+// profiles.is_admin server-side before returning content_html. Direct
+// selects on that column are revoked for the authenticated role, so
+// this is the only path an editor screen has back to it — admin
+// status is checked in Postgres, not trusted from the client.
 export async function getLessonById(id) {
-  const { data, error } = await supabase.from('lessons').select('*').eq('id', id).single()
+  const { data, error } = await supabase
+    .rpc('get_lesson_admin', { p_id: id })
+    .single()
   if (error) throw error
   return data
 }
@@ -196,10 +213,13 @@ export async function updateTopic(id, fields) {
   return data
 }
 
+// Same reasoning as createLesson: no .select() chained onto the raw
+// update (it would try to return content_html and hit the column
+// revoke). Fetch the confirmed row via get_lesson_admin() instead.
 export async function updateLesson(id, fields) {
-  const { data, error } = await supabase.from('lessons').update(fields).eq('id', id).select().single()
+  const { error } = await supabase.from('lessons').update(fields).eq('id', id)
   if (error) throw error
-  return data
+  return getLessonById(id)
 }
 
 // ---- Admin: Delete ----
@@ -218,4 +238,3 @@ export async function deleteLesson(id) {
   const { error } = await supabase.from('lessons').delete().eq('id', id)
   if (error) throw error
 }
-  
