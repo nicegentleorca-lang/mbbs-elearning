@@ -57,7 +57,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <header>
         <span className="specimen-label mb-2 block w-fit">Welcome, Medic!</span>
-        <h1 className="font-display text-3xl font-bold text-ink">Subjects</h1>
+        <h1 className="font-display text-3xl font-bold text-ink">Courses</h1>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
