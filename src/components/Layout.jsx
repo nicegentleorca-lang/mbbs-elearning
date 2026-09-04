@@ -38,7 +38,7 @@ export default function Layout({ children }) {
             {user && (
               <div className="flex items-center gap-3 sm:gap-6 shrink-0">
                 <NavLink to="/" end className={navLinkClass}>
-                  Crash Courses
+                  Courses
                 </NavLink>
                 <NavLink to="/quizzes" className={navLinkClass}>
                   Quizzes
