@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import { supabase } from '../../lib/supabase'
+import { getLessonById } from '../../lib/content'
 
 export default function AdminLessonEditor() {
   const { id } = useParams()
@@ -52,19 +53,20 @@ export default function AdminLessonEditor() {
     setSubjects(subData || [])
     setTopics(topData || [])
 
-    // Fetch existing lesson data
+    // Fetch existing lesson data. Routed through get_lesson_admin() (via
+    // content.js's getLessonById) since direct SELECT on
+    // lessons.content_html is revoked for the authenticated role — see
+    // supabase_migration_gate_lesson_content.sql. The function verifies
+    // profiles.is_admin server-side before returning content_html.
     if (id) {
-      const { data: lesson } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (lesson) {
+      try {
+        const lesson = await getLessonById(id)
         setTitle(lesson.title || '')
         setPreviewContent(lesson.preview_html || '')
         setFullContent(lesson.content_html || '')
         setSelectedTopic(String(lesson.topic_id || ''))
+      } catch (err) {
+        alert('Error loading lesson: ' + err.message)
       }
     }
     setLoading(false)
@@ -131,6 +133,13 @@ export default function AdminLessonEditor() {
       updated_at: new Date()
     }
 
+    // NOTE: these writes intentionally skip .select() after insert/update.
+    // The column revoke in the migration only affects SELECT, not
+    // INSERT/UPDATE, so writing content_html still works — but reading
+    // it back in the same call would trip the same revoke that fetchInitialData
+    // above works around. Since this form doesn't need the row back
+    // (it just navigates away on success), leaving this as a bare
+    // insert/update is correct, not an oversight.
     let error
     if (id) {
       ;({ error } = await supabase.from('lessons').update(payload).eq('id', id))
@@ -271,5 +280,4 @@ export default function AdminLessonEditor() {
       </button>
     </form>
   )
-                          }
-          
+}
