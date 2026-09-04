@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getSubjectBySlug, getTopicBySlug, getLessonBySlug, hasPurchasedSubject } from '../lib/content'
+import { getSubjectBySlug, getTopicBySlug, getLessonBySlug } from '../lib/content'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LessonPage() {
   const { subjectSlug, topicSlug, lessonSlug } = useParams()
-  const { user, isAdmin } = useAuth()
+  const { user } = useAuth()
   const [subject, setSubject] = useState(null)
   const [topic, setTopic] = useState(null)
   const [lesson, setLesson] = useState(null)
-  const [owned, setOwned] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -19,13 +18,15 @@ export default function LessonPage() {
       try {
         const subj = await getSubjectBySlug(subjectSlug)
         const top = await getTopicBySlug(subj.id, topicSlug)
+        // content_html only arrives populated if the caller is
+        // entitled — that check runs server-side inside the
+        // get_lesson_gated() Postgres function. `lesson.owned`
+        // reflects the same check, computed in the same query.
         const lsn = await getLessonBySlug(top.id, lessonSlug)
-        const has = await hasPurchasedSubject(user?.id, subj.id, isAdmin)
         if (cancelled) return
         setSubject(subj)
         setTopic(top)
         setLesson(lsn)
-        setOwned(has)
       } catch (err) {
         if (!cancelled) setError('Could not load this lesson.')
         console.error(err)
@@ -35,7 +36,7 @@ export default function LessonPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [subjectSlug, topicSlug, lessonSlug, user, isAdmin])
+  }, [subjectSlug, topicSlug, lessonSlug, user])
 
   if (loading) return <p className="text-slate font-mono text-sm">Loading…</p>
   if (error) return <p className="text-vital">{error}</p>
@@ -53,29 +54,20 @@ export default function LessonPage() {
         dangerouslySetInnerHTML={{ __html: lesson.preview_html || '' }}
       />
 
-      {owned ? (
+      {lesson.owned ? (
         <div
           className="prose max-w-none font-display text-lg leading-relaxed"
           dangerouslySetInnerHTML={{ __html: lesson.content_html || '' }}
         />
       ) : (
-        <div className="relative mt-2">
-          <div
-            className="prose max-w-none font-display text-lg leading-relaxed paywall-blur select-none"
-            dangerouslySetInnerHTML={{ __html: lesson.content_html || '' }}
-            aria-hidden="true"
-          />
-          <div className="absolute inset-0 flex items-start justify-center pt-12 bg-gradient-to-b from-transparent to-paper">
-            <div className="index-card px-6 py-5 text-center max-w-xs">
-              <p className="font-display text-lg font-semibold mb-2">Unlock {subject.name}</p>
-              <p className="text-slate text-sm mb-4">
-                One-time payment. Full notes for every topic in {subject.name}, forever.
-              </p>
-              <Link to={`/subjects/${subjectSlug}/unlock`} className="btn-primary inline-block">
-                See price
-              </Link>
-            </div>
-          </div>
+        <div className="index-card px-6 py-5 text-center max-w-xs mt-2">
+          <p className="font-display text-lg font-semibold mb-2">Unlock {subject.name}</p>
+          <p className="text-slate text-sm mb-4">
+            One-time payment. Full notes for every topic in {subject.name}, forever.
+          </p>
+          <Link to={`/subjects/${subjectSlug}/unlock`} className="btn-primary inline-block">
+            See price
+          </Link>
         </div>
       )}
     </div>
