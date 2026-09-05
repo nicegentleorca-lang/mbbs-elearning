@@ -25,7 +25,7 @@ export default function Layout({ children }) {
     }`
 
   return (
-    <div className="min-h-screen w-full flex flex-col relative overflow-x-hidden">
+    <div className="min-h-[100dvh] w-full flex flex-col relative overflow-x-hidden">
       {/* Background Ambient Glow Orbs */}
       <div className="pointer-events-none fixed -top-32 -left-32 w-96 h-96 bg-venous/15 rounded-full blur-3xl z-0" />
       <div className="pointer-events-none fixed top-1/3 -right-32 w-96 h-96 bg-ink/10 rounded-full blur-3xl z-0" />
@@ -91,18 +91,18 @@ export default function Layout({ children }) {
         {children || <Outlet />}
       </main>
 
-      {/* Floating Glass Footer */}
-      <footer className="w-full px-3 sm:px-6 pb-4 pt-6 z-10">
+      {/* Compact Floating Glass Footer anchored to absolute bottom */}
+      <footer className="w-full px-3 sm:px-6 pb-3 pt-4 z-10 mt-auto">
         <div
           className={
             useDarkFooter
-              ? 'max-w-5xl mx-auto rounded-3xl border border-white/10 bg-ink/95 backdrop-blur-xl p-6 text-xs text-white/50 shadow-glass'
-              : 'max-w-5xl mx-auto rounded-3xl border border-white/80 bg-white/60 backdrop-blur-xl p-6 text-xs text-slate shadow-glass'
+              ? 'max-w-5xl mx-auto rounded-full border border-white/10 bg-ink/95 backdrop-blur-xl px-4 py-2.5 text-[11px] text-white/50 shadow-glass'
+              : 'max-w-5xl mx-auto rounded-full border border-white/80 bg-white/60 backdrop-blur-xl px-4 py-2.5 text-[11px] text-slate shadow-glass'
           }
         >
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <DeltoidLogo className="w-4 h-4" />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+              <DeltoidLogo className="w-3.5 h-3.5" />
               <span
                 className={
                   useDarkFooter
@@ -116,7 +116,7 @@ export default function Layout({ children }) {
                 • Active Recall & Medical Practice
               </span>
             </div>
-            <p className={`font-mono text-[11px] ${useDarkFooter ? 'text-white/30' : 'text-slate-light'}`}>
+            <p className={`font-mono text-[10px] ${useDarkFooter ? 'text-white/30' : 'text-slate-light'}`}>
               © {new Date().getFullYear()} Deltoid. All rights reserved.
             </p>
           </div>
