@@ -25,7 +25,7 @@ export default {
         mono: ['"IBM Plex Mono"', 'monospace']
       },
       borderRadius: {
-        card: '4px'
+        card: '1.25rem' // Updated to 20px (iOS rounded card radius)
       },
       boxShadow: {
         card: '0 2px 8px -2px rgba(27, 42, 74, 0.06), 0 1px 4px -1px rgba(27, 42, 74, 0.04)',
