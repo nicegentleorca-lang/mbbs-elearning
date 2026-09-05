@@ -74,7 +74,7 @@ export default function Dashboard() {
                   {subject.name}
                 </h2>
                 {isOwned && (
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-gold bg-gold/10 border border-gold/30 rounded-md px-2 py-0.5 font-semibold shrink-0">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-gold bg-gold/10 border border-gold/30 rounded px-2 py-0.5 font-semibold shrink-0">
                     Unlocked
                   </span>
                 )}
