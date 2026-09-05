@@ -98,7 +98,7 @@ export default function Quizzes() {
                     <span className="uppercase text-venous font-bold">{subjectName}</span>
                     <div className="flex items-center gap-2">
                       {!hasAccess && (
-                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase">
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase">
                           🔒 Locked
                         </span>
                       )}
@@ -113,7 +113,7 @@ export default function Quizzes() {
                   {!hasAccess ? (
                     <Link
                       to={subjectSlug ? `/subjects/${subjectSlug}/unlock` : '#'}
-                      className="block text-center text-sm py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-full tracking-wide transition shadow-sm"
+                      className="block text-center text-sm py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-full tracking-wide transition shadow-sm"
                     >
                       🔒 Unlock Subject
                     </Link>
@@ -133,4 +133,4 @@ export default function Quizzes() {
       )}
     </div>
   )
-              }
+}
