@@ -113,7 +113,7 @@ export default function Quizzes() {
                   {!hasAccess ? (
                     <Link
                       to={subjectSlug ? `/subjects/${subjectSlug}/unlock` : '#'}
-                      className="btn-primary block text-center text-sm py-2 bg-amber-600 hover:bg-amber-700 text-white tracking-wide rounded-full"
+                      className="block text-center text-sm py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-full tracking-wide transition shadow-sm"
                     >
                       🔒 Unlock Subject
                     </Link>
@@ -133,4 +133,4 @@ export default function Quizzes() {
       )}
     </div>
   )
-}
+              }
