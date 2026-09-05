@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   if (subjects.length === 0) {
     return (
-      <div className="text-center py-20 bg-white/50 border border-paperDim rounded-card">
+      <div className="text-center py-20 bg-white/50 border border-paperDim rounded-2xl">
         <span className="specimen-label mb-4 inline-block">SYSTEM EMPTY</span>
         <p className="text-slate text-sm">No subjects available right now. Check back soon!</p>
       </div>
@@ -67,14 +67,14 @@ export default function Dashboard() {
             <Link 
               key={subject.id} 
               to={`/subjects/${subject.slug}`} 
-              className="index-card p-6 block group"
+              className="index-card p-6 block group rounded-2xl"
             >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="font-display text-xl font-bold text-ink group-hover:text-venous transition-colors">
                   {subject.name}
                 </h2>
                 {isOwned && (
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-gold bg-gold/10 border border-gold/30 rounded px-2 py-0.5 font-semibold shrink-0">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-gold bg-gold/10 border border-gold/30 rounded-md px-2 py-0.5 font-semibold shrink-0">
                     Unlocked
                   </span>
                 )}
