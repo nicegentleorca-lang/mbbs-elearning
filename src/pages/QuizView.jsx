@@ -817,7 +817,7 @@ export default function QuizView() {
             onClick={() => setShowGrid(!showGrid)}
             className="text-xs font-mono font-bold text-venous hover:underline flex items-center gap-1"
           >
-            📊 Grid ({answeredCount}/{questions.length})
+            🔍 Grid ({answeredCount}/{questions.length})
           </button>
           <p className="text-xs text-slate font-medium mt-0.5">Question {currentIndex + 1} of {questions.length}</p>
         </div>
