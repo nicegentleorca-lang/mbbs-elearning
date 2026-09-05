@@ -79,3 +79,12 @@ body {
   border-radius: 6px;
   border: 1px solid #E2E8E6;
 }
+
+/* Hide scrollbars for smooth mobile interaction */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  }
