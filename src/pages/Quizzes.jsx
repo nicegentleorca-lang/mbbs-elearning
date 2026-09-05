@@ -117,16 +117,6 @@ export default function Quizzes() {
                     >
                       🔒 Unlock Subject
                     </Link>
-                  ) : attempt ? (
-                    <div className="flex items-center justify-between bg-paper p-3 rounded-card border border-paperDim">
-                      <span className="text-xs font-mono text-emerald-700 font-bold">Completed</span>
-                      <Link
-                        to={`/quiz/${quiz.id}`}
-                        className="text-xs font-bold font-mono text-venous hover:underline"
-                      >
-                        Review ({attempt.score}/{attempt.total_questions}) →
-                      </Link>
-                    </div>
                   ) : (
                     <Link
                       to={`/quiz/${quiz.id}`}
@@ -143,4 +133,4 @@ export default function Quizzes() {
       )}
     </div>
   )
-              }
+}
