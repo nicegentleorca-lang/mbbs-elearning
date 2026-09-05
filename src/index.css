@@ -6,13 +6,19 @@ html, body, #root {
   height: 100%;
 }
 
+/* 2026 Ambient Canvas Lighting */
 body {
-  @apply bg-paper text-ink font-sans antialiased selection:bg-venous/20 selection:text-ink;
+  @apply bg-paper text-ink font-sans antialiased selection:bg-venous/20 selection:text-ink relative overflow-x-hidden;
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(60, 110, 113, 0.08) 0px, transparent 50%),
+    radial-gradient(at 90% 20%, rgba(27, 42, 74, 0.06) 0px, transparent 50%),
+    radial-gradient(at 50% 80%, rgba(201, 154, 60, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
 }
 
-/* Signature Deltoid "Specimen Label" — Eyebrow label with clinical corner ticks */
+/* Signature Deltoid "Specimen Label" */
 .specimen-label {
-  @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate font-medium;
+  @apply relative inline-block font-mono text-xs tracking-[0.18em] uppercase text-slate font-medium bg-white/60 backdrop-blur-md rounded-lg;
   padding: 0.35rem 0.75rem;
 }
 .specimen-label::before,
@@ -24,20 +30,31 @@ body {
   border-color: currentColor;
 }
 .specimen-label::before {
-  top: 0; left: 0;
+  top: -1px; left: -1px;
   border-top: 1px solid; border-left: 1px solid;
 }
 .specimen-label::after {
-  bottom: 0; right: 0;
+  bottom: -1px; right: -1px;
   border-bottom: 1px solid; border-right: 1px solid;
 }
 
-/* Index-card style for topic, lesson, and quiz cards */
+/* Glassmorphic Tactical Index Cards */
 .index-card {
-  @apply bg-white border border-paperDim rounded-card shadow-card transition-all duration-200;
+  @apply bg-white/80 backdrop-blur-xl border border-white/80 rounded-card shadow-card transition-all duration-300 relative overflow-hidden;
+}
+.index-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(226,232,230,0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 .index-card:hover {
-  @apply shadow-hover border-venous/30 -translate-y-[1px];
+  @apply shadow-hover border-venous/40 -translate-y-[2px] bg-white/95;
 }
 
 /* Blurred lock overlay for paywalled content */
@@ -47,16 +64,17 @@ body {
   pointer-events: none;
 }
 
+/* Modern Pill Form Controls */
 .input {
-  @apply w-full border border-paperDim bg-white rounded-card px-3.5 py-2.5 text-ink placeholder:text-slate-light focus:border-venous focus:ring-1 focus:ring-venous outline-none transition-all text-sm;
+  @apply w-full border border-paperDim/80 bg-white/90 rounded-full px-4 py-3 text-ink placeholder:text-slate-light focus:border-venous focus:ring-2 focus:ring-venous/20 focus:bg-white outline-none transition-all text-sm shadow-sm;
 }
 
 .btn-primary {
-  @apply bg-vital text-white font-medium px-4 py-2.5 rounded-card hover:bg-vitalDark active:scale-[0.99] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm;
+  @apply bg-vital text-white font-medium px-5 py-2.5 rounded-full hover:bg-vitalDark active:scale-[0.98] transition-all shadow-sm hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed text-sm tracking-wide;
 }
 
 .btn-secondary {
-  @apply bg-white border border-paperDim text-ink font-medium px-4 py-2.5 rounded-card hover:border-venous hover:bg-paper/50 active:scale-[0.99] transition-all shadow-sm disabled:opacity-50 text-sm;
+  @apply bg-white/90 backdrop-blur-md border border-paperDim text-ink font-medium px-5 py-2.5 rounded-full hover:border-venous hover:bg-white active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 text-sm;
 }
 
 :focus-visible {
@@ -76,8 +94,9 @@ body {
   height: auto;
   display: block;
   margin: 1.5rem auto;
-  border-radius: 6px;
+  border-radius: 1rem;
   border: 1px solid #E2E8E6;
+  box-shadow: 0 4px 16px rgba(27, 42, 74, 0.06);
 }
 
 /* Hide scrollbars for smooth mobile interaction */
@@ -87,4 +106,4 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-  }
+}
