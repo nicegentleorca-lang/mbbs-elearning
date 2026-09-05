@@ -25,11 +25,14 @@ export default {
         mono: ['"IBM Plex Mono"', 'monospace']
       },
       borderRadius: {
-        card: '1.25rem' // Updated to 20px (iOS rounded card radius)
+        card: '1.5rem', // 24px iOS smooth pill container curve
+        pill: '9999px'
       },
       boxShadow: {
-        card: '0 2px 8px -2px rgba(27, 42, 74, 0.06), 0 1px 4px -1px rgba(27, 42, 74, 0.04)',
-        hover: '0 8px 20px -4px rgba(27, 42, 74, 0.12), 0 4px 8px -2px rgba(27, 42, 74, 0.06)'
+        card: '0 4px 20px -2px rgba(27, 42, 74, 0.05), 0 2px 6px -1px rgba(27, 42, 74, 0.03)',
+        hover: '0 12px 30px -4px rgba(27, 42, 74, 0.12), 0 6px 12px -3px rgba(60, 110, 113, 0.08)',
+        glass: '0 8px 32px 0 rgba(27, 42, 74, 0.06)',
+        glow: '0 0 20px -3px rgba(60, 110, 113, 0.25)'
       }
     }
   },
