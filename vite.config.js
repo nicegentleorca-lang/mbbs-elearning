@@ -11,7 +11,7 @@ export default defineConfig({
       manifest: {
         name: 'Deltoid',
         short_name: 'Deltoid',
-        description: 'Anatomy, Biochemistry & Physiology notes and quizzes for MBBS preclinical students.',
+        description: 'Crash Courses and quizzes for MBBS preclinical students.',
         theme_color: '#1B2A4A',
         background_color: '#EEF2F1',
         display: 'standalone',
