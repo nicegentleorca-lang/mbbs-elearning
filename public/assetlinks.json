@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "app.vercel.mbbs_elearning.twa",
-        "sha256_cert_fingerprints": ["39:49:D6:18:E8:D2:47:B7:6D:3C:E5:1E:20:A8:DA:2E:8F:85:D9:F3:3C:2E:C8:11:89:2A:CA:AE:F4:8E:CE:A8"]
+        "sha256_cert_fingerprints": ["D2:10:F2:1D:8E:FA:62:61:DA:83:C0:E3:09:8B:59:81:0E:3D:61:DD:82:BF:75:16:3B:E7:B9:C1:39:38:8F:7D"]
       }
     }]
