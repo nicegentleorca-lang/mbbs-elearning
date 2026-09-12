@@ -5,6 +5,46 @@ import 'react-quill/dist/quill.snow.css'
 import { supabase } from '../../lib/supabase'
 import { getLessonById } from '../../lib/content'
 
+// Utility function to compress images client-side before uploading
+async function compressImage(file, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.src = URL.createObjectURL(file)
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      let width = image.width
+      let height = image.height
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width)
+        width = maxWidth
+      }
+
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(image, 0, 0, width, height)
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+              type: 'image/webp',
+              lastModified: Date.now()
+            })
+            resolve(newFile)
+          } else {
+            reject(new Error('Image canvas compression failed'))
+          }
+        },
+        'image/webp',
+        quality
+      )
+    }
+    image.onerror = (err) => reject(err)
+  })
+}
+
 export default function AdminLessonEditor() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -18,16 +58,14 @@ export default function AdminLessonEditor() {
   const [fullContent, setFullContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
-  // File input refs
   const previewFileInputRef = useRef(null)
   const fullFileInputRef = useRef(null)
 
-  // Quill Editor refs
   const previewQuillRef = useRef(null)
   const fullQuillRef = useRef(null)
 
-  // Standard Quill Toolbar (Resizer removed for clean mobile scrolling)
   const quillModules = useMemo(() => ({
     toolbar: [
       [{ header: [1, 2, 3, false] }],
@@ -43,52 +81,53 @@ export default function AdminLessonEditor() {
 
   async function fetchInitialData() {
     setLoading(true)
+    setErrorMessage('')
     
-    // Fetch subjects and topics
-    const [{ data: subData }, { data: topData }] = await Promise.all([
-      supabase.from('subjects').select('*').order('name'),
-      supabase.from('topics').select('*').order('sort_order', { ascending: true })
-    ])
+    try {
+      const [{ data: subData, error: subErr }, { data: topData, error: topErr }] = await Promise.all([
+        supabase.from('subjects').select('*').order('name'),
+        supabase.from('topics').select('*').order('sort_order', { ascending: true })
+      ])
 
-    setSubjects(subData || [])
-    setTopics(topData || [])
+      if (subErr) throw subErr
+      if (topErr) throw topErr
 
-    // Fetch existing lesson data. Routed through get_lesson_admin() (via
-    // content.js's getLessonById) since direct SELECT on
-    // lessons.content_html is revoked for the authenticated role — see
-    // supabase_migration_gate_lesson_content.sql. The function verifies
-    // profiles.is_admin server-side before returning content_html.
-    if (id) {
-      try {
+      setSubjects(subData || [])
+      setTopics(topData || [])
+
+      if (id) {
         const lesson = await getLessonById(id)
-        setTitle(lesson.title || '')
-        setPreviewContent(lesson.preview_html || '')
-        setFullContent(lesson.content_html || '')
-        setSelectedTopic(String(lesson.topic_id || ''))
-      } catch (err) {
-        alert('Error loading lesson: ' + err.message)
+        if (lesson) {
+          setTitle(lesson.title || '')
+          setPreviewContent(lesson.preview_html || '')
+          setFullContent(lesson.content_html || '')
+          setSelectedTopic(String(lesson.topic_id || ''))
+        }
       }
+    } catch (err) {
+      setErrorMessage('Error initializing editor: ' + err.message)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function handleImageUpload(e, quillRef) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
     const buttonEl = e.target.previousElementSibling
     const originalText = buttonEl ? buttonEl.innerText : ''
-    if (buttonEl) buttonEl.innerText = 'Uploading...'
+    if (buttonEl) buttonEl.innerText = 'Compressing & Uploading...'
 
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+      // Compress asset client-side before sending to bucket
+      const fileToUpload = await compressImage(rawFile)
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.webp`
       const filePath = `lessons/${fileName}`
 
-      // Upload image to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('lesson-images')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false })
+        .upload(filePath, fileToUpload, { cacheControl: '3600', upsert: false })
 
       if (uploadError) throw uploadError
 
@@ -96,11 +135,10 @@ export default function AdminLessonEditor() {
         .from('lesson-images')
         .getPublicUrl(filePath)
 
-      if (!data?.publicUrl) throw new Error('Could not generate public URL')
+      if (!data?.publicUrl) throw new Error('Could not resolve image public URL')
 
       const imageUrl = data.publicUrl
 
-      // Get Quill Instance & insert at active cursor position
       const quill = quillRef.current?.getEditor()
       if (quill) {
         const range = quill.getSelection(true)
@@ -109,7 +147,7 @@ export default function AdminLessonEditor() {
         quill.setSelection(index + 1)
       }
     } catch (err) {
-      alert('Failed to upload image: ' + err.message)
+      alert('Failed to process image: ' + err.message)
     } finally {
       e.target.value = ''
       if (buttonEl) buttonEl.innerText = originalText
@@ -119,44 +157,40 @@ export default function AdminLessonEditor() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!selectedTopic) {
-      alert('Please select a topic.')
+      alert('Please select a topic for this lesson.')
       return
     }
 
     setSaving(true)
+    setErrorMessage('')
     
     const payload = {
-      title,
+      title: title.trim(),
       topic_id: selectedTopic,
       preview_html: previewContent,
       content_html: fullContent,
       updated_at: new Date()
     }
 
-    // NOTE: these writes intentionally skip .select() after insert/update.
-    // The column revoke in the migration only affects SELECT, not
-    // INSERT/UPDATE, so writing content_html still works — but reading
-    // it back in the same call would trip the same revoke that fetchInitialData
-    // above works around. Since this form doesn't need the row back
-    // (it just navigates away on success), leaving this as a bare
-    // insert/update is correct, not an oversight.
-    let error
-    if (id) {
-      ;({ error } = await supabase.from('lessons').update(payload).eq('id', id))
-    } else {
-      ;({ error } = await supabase.from('lessons').insert([payload]))
-    }
+    try {
+      let error
+      if (id) {
+        ;({ error } = await supabase.from('lessons').update(payload).eq('id', id))
+      } else {
+        ;({ error } = await supabase.from('lessons').insert([payload]))
+      }
 
-    setSaving(false)
+      if (error) throw error
 
-    if (error) {
-      alert('Error saving lesson: ' + error.message)
-    } else {
-      navigate('/admin')
+      navigate('/admin/manage')
+    } catch (err) {
+      setErrorMessage('Failed to save lesson: ' + err.message)
+    } finally {
+      setSaving(false)
     }
   }
 
-  if (loading) return <div className="p-6 text-center text-slate font-mono">Loading editor...</div>
+  if (loading) return <div className="p-8 text-center text-slate font-mono text-sm">Loading editor engine...</div>
 
   const unassignedTopics = topics.filter(
     t => !subjects.some(s => String(s.id) === String(t.subject_id))
@@ -164,20 +198,35 @@ export default function AdminLessonEditor() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-display font-bold text-ink">
-        {id ? 'Edit Lesson' : 'Create Lesson'}
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-display font-bold text-ink">
+          {id ? 'Edit Lesson Notes' : 'Create New Lesson'}
+        </h1>
+        <button
+          type="button"
+          onClick={() => navigate('/admin/manage')}
+          className="btn-secondary text-xs px-3 py-1.5"
+        >
+          Cancel
+        </button>
+      </div>
 
-      {/* Grouped Topic Dropdown */}
+      {errorMessage && (
+        <div className="p-3 bg-vital/10 border border-vital/30 rounded text-vital text-xs font-mono">
+          {errorMessage}
+        </div>
+      )}
+
+      {/* Topic Selection */}
       <div>
-        <label className="block text-sm font-medium text-slate mb-1">Topic</label>
+        <label className="block text-xs font-mono uppercase text-slate font-bold mb-1">Target Topic</label>
         <select
           value={selectedTopic}
           onChange={e => setSelectedTopic(e.target.value)}
           required
-          className="w-full p-2 border border-paperDim rounded bg-paper text-ink"
+          className="w-full p-2.5 border border-paperDim rounded bg-white text-ink text-sm focus:outline-none focus:border-venous"
         >
-          <option value="">-- Select Topic --</option>
+          <option value="">-- Choose Target Topic --</option>
           {subjects.map(s => {
             const subjectTopics = topics.filter(t => String(t.subject_id) === String(s.id))
             if (subjectTopics.length === 0) return null
@@ -203,28 +252,29 @@ export default function AdminLessonEditor() {
         </select>
       </div>
 
-      {/* Lesson Title */}
+      {/* Title */}
       <div>
-        <label className="block text-sm font-medium text-slate mb-1">Lesson Title</label>
+        <label className="block text-xs font-mono uppercase text-slate font-bold mb-1">Lesson Title</label>
         <input
           type="text"
           value={title}
           onChange={e => setTitle(e.target.value)}
+          placeholder="e.g. Brachial Plexus Anatomy & Lesions"
           required
-          className="w-full p-2 border border-paperDim rounded bg-paper text-ink"
+          className="w-full p-2.5 border border-paperDim rounded bg-white text-ink text-sm focus:outline-none focus:border-venous"
         />
       </div>
 
-      {/* Free Preview Content */}
+      {/* Free Preview */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-sm font-medium text-slate">Free Preview Content</label>
+          <label className="block text-xs font-mono uppercase text-slate font-bold">Free Preview Snippet</label>
           <button
             type="button"
             onClick={() => previewFileInputRef.current?.click()}
             className="text-xs text-venous hover:underline font-medium"
           >
-            + Embed image
+            + Embed Compressed Image
           </button>
           <input
             type="file"
@@ -234,25 +284,27 @@ export default function AdminLessonEditor() {
             className="hidden"
           />
         </div>
-        <ReactQuill 
-          ref={previewQuillRef} 
-          theme="snow" 
-          value={previewContent} 
-          onChange={setPreviewContent} 
-          modules={quillModules}
-        />
+        <div className="bg-white rounded">
+          <ReactQuill 
+            ref={previewQuillRef} 
+            theme="snow" 
+            value={previewContent} 
+            onChange={setPreviewContent} 
+            modules={quillModules}
+          />
+        </div>
       </div>
 
-      {/* Full Notes Content */}
+      {/* Full Notes */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-sm font-medium text-slate">Full Notes (Paywalled)</label>
+          <label className="block text-xs font-mono uppercase text-slate font-bold">Full Notes (Paywalled Content)</label>
           <button
             type="button"
             onClick={() => fullFileInputRef.current?.click()}
             className="text-xs text-venous hover:underline font-medium"
           >
-            + Embed image
+            + Embed Compressed Image
           </button>
           <input
             type="file"
@@ -262,22 +314,24 @@ export default function AdminLessonEditor() {
             className="hidden"
           />
         </div>
-        <ReactQuill 
-          ref={fullQuillRef} 
-          theme="snow" 
-          value={fullContent} 
-          onChange={setFullContent} 
-          modules={quillModules}
-        />
+        <div className="bg-white rounded">
+          <ReactQuill 
+            ref={fullQuillRef} 
+            theme="snow" 
+            value={fullContent} 
+            onChange={setFullContent} 
+            modules={quillModules}
+          />
+        </div>
       </div>
 
       <button
         type="submit"
         disabled={saving}
-        className="w-full py-3 bg-venous text-white rounded font-medium hover:bg-venousDark transition disabled:opacity-50"
+        className="w-full py-3 bg-venous text-white rounded font-medium hover:bg-venousDark transition disabled:opacity-50 text-sm shadow-sm"
       >
-        {saving ? 'Saving...' : 'Publish Lesson'}
+        {saving ? 'Saving Lesson Data...' : 'Publish Lesson'}
       </button>
     </form>
   )
-}
+        }
