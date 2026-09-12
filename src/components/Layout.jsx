@@ -2,21 +2,26 @@ import { Link, NavLink, useNavigate, useLocation, Outlet } from 'react-router-do
 import { useAuth } from '../contexts/AuthContext'
 import DeltoidLogo from './DeltoidLogo'
 
-const DARK_FOOTER_ROUTES = ['/login', '/signup']
+const DARK_FOOTER_PREFIXES = ['/login', '/signup']
 
 export default function Layout({ children }) {
   const { user, isAdmin, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const useDarkFooter = DARK_FOOTER_ROUTES.includes(location.pathname)
+  const useDarkFooter = DARK_FOOTER_PREFIXES.some(prefix =>
+    location.pathname.toLowerCase().startsWith(prefix)
+  )
 
   async function handleSignOut() {
-    await signOut()
-    navigate('/login')
+    try {
+      await signOut()
+      navigate('/login')
+    } catch (err) {
+      console.error('Error signing out:', err)
+    }
   }
 
-  // Modern Segmented Pill Indicator
   const navLinkClass = ({ isActive }) =>
     `text-xs sm:text-sm font-medium transition-all px-3.5 py-1.5 rounded-full whitespace-nowrap ${
       isActive
@@ -25,7 +30,7 @@ export default function Layout({ children }) {
     }`
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col relative overflow-x-hidden">
+    <div className="min-h-[100dvh] w-full flex flex-col relative overflow-x-hidden bg-paper">
       {/* Background Ambient Glow Orbs */}
       <div className="pointer-events-none fixed -top-32 -left-32 w-96 h-96 bg-venous/15 rounded-full blur-3xl z-0" />
       <div className="pointer-events-none fixed top-1/3 -right-32 w-96 h-96 bg-ink/10 rounded-full blur-3xl z-0" />
@@ -91,7 +96,7 @@ export default function Layout({ children }) {
         {children || <Outlet />}
       </main>
 
-      {/* Compact Floating Glass Footer anchored to absolute bottom */}
+      {/* Compact Floating Glass Footer */}
       <footer className="w-full px-3 sm:px-6 pb-3 pt-4 z-10 mt-auto">
         <div
           className={
